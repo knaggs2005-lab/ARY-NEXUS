@@ -1,0 +1,61 @@
+{
+  "projectRef": "hcgwkmpvlqndrkrfheny",
+  "method": "Manual baseline adoption after normalized catalog parity; original migration execution timestamps were not available.",
+  "expectedPublicObjects": 50,
+  "matchedPublicObjects": 50,
+  "migrations": [
+    {
+      "file": "202609060001_initial.sql",
+      "sha256": "d485b4872ada6da5fab01449c54ed1bc0912bcbc85d3c75975a3b7503fe694d7"
+    },
+    {
+      "file": "202609060002_memory_foundation.sql",
+      "sha256": "03bd59117c5d0050eaf94e65f710845e465b0bfccc5cf32f30ce366c4fa2c12d"
+    },
+    {
+      "file": "202609060003_openai_embeddings.sql",
+      "sha256": "153496d600127997bf7d4abff58beb610584fe0f4716c5397f21ac25324b1378"
+    },
+    {
+      "file": "202609060004_hybrid_retrieval.sql",
+      "sha256": "be8ffe56e59425b65fe71f52179cae055c20aa0636b21f38d0f693b1c0828467"
+    },
+    {
+      "file": "202609060005_reflection.sql",
+      "sha256": "56b2e21ca95ef9cab9ab0b7834d827ede7173a6ab2b7e30b9cbf0280d3be0c80"
+    },
+    {
+      "file": "202609060006_brain_graph.sql",
+      "sha256": "f7a86312b38ae4b6129f8e75e4d5b1e08df2236a03b145d2ddfa7198a47726cd"
+    },
+    {
+      "file": "202609060007_permissions.sql",
+      "sha256": "3b9f88b4e75d2ccd86cabc527dfddd95d748ed47a0aa205ecaf3476571f6bcc8"
+    },
+    {
+      "file": "202609060008_roi.sql",
+      "sha256": "67e884e3a5e94b1bd631a27067a56233aaff6af6a209b3c9dfa28c0e57d1b873"
+    },
+    {
+      "file": "202609060009_memory_sources.sql",
+      "sha256": "dbba6f59caca535992a9ed8fd6f691e9a904c2cff8f3e222079c984e26f49683"
+    },
+    {
+      "file": "202609070010_action_execution_keys.sql",
+      "sha256": "857ff5b583e831adb1bb96e95293ee5d55ca2f8d03b1e65e6598225301786e88"
+    },
+    {
+      "file": "202609070011_roi_economics.sql",
+      "sha256": "b1dfde3e699e01871ea17ede4363d000c05b63c279b7f9201e159183c1ab287a"
+    },
+    {
+      "file": "202609070012_finance.sql",
+      "sha256": "3c2e5c719baf79e2fd5a8cdd72877bb19711939709f9b829f88f86d8b4af933c"
+    },
+    {
+      "file": "202609070013_audit_grants.sql",
+      "sha256": "6ca84cb1be64bfbfb538df812cfbb25d840823bb35ff1567f29b099282f237be"
+    }
+  ],
+  "verifiedLocalDate": "2026-09-07"
+}

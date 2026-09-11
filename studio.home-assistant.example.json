@@ -1,0 +1,52 @@
+{
+  "locations": [
+    {
+      "id": "studio",
+      "name": "Studio",
+      "kind": "studio"
+    },
+    {
+      "id": "home",
+      "name": "Home",
+      "kind": "home"
+    },
+    {
+      "id": "office",
+      "name": "Office",
+      "kind": "office"
+    }
+  ],
+  "devices": [
+    {
+      "id": "key-light",
+      "name": "Key light",
+      "kind": "light",
+      "adapter": "home_assistant",
+      "ha_entity_id": "light.replace_with_your_individual_light",
+      "location_id": "studio",
+      "position": {
+        "x": 32,
+        "y": 45
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "podcast",
+      "name": "Podcast lighting check",
+      "aliases": ["podcast mode"],
+      "steps": [
+        {
+          "id": "light",
+          "device_id": "key-light",
+          "command": {
+            "verb": "intensity",
+            "value": 450
+          },
+          "depends_on": [],
+          "required": true
+        }
+      ]
+    }
+  ]
+}

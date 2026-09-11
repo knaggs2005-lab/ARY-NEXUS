@@ -1,0 +1,17 @@
+# Runtime secrets and state never belong in this deployment package.
+worker-secrets.env
+.env
+.env.*
+!.env.example
+data/
+__pycache__/
+*.pyc
+*.b64
+*.tar
+*.tar.gz
+*.tgz
+*.key
+*.pem
+*.log
+config.runtime.*
+acceptance.local*.json

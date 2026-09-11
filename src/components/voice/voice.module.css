@@ -1,0 +1,260 @@
+.voice {
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--line, #293231);
+  margin-top: 12px;
+  color: var(--muted, #a5b2b0);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+.row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  min-height: 36px;
+}
+.state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  text-transform: capitalize;
+  min-width: 80px;
+}
+.state i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7a8886;
+}
+.state i[data-active="true"] {
+  background: var(--green, #286b58);
+  box-shadow: 0 0 10px #90c9b944;
+  animation: breathe 1.6s ease-in-out infinite;
+}
+.active {
+  color: var(--green, #286b58) !important;
+  border-color: #8caea4 !important;
+}
+.voice small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.8;
+}
+.providers {
+  opacity: 0.7;
+}
+.preview {
+  font-size: 12px;
+  color: var(--green, #286b58);
+}
+.preview button {
+  font-size: 11px;
+  margin-left: 8px;
+}
+.error {
+  color: #a84235;
+  font-size: 12px;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .state i[data-active="true"] {
+    animation: none;
+  }
+}
+
+/* The orb reflects capture energy only while listening; other motion indicates state. */
+.presence {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  margin: 0 0 14px;
+  border: 1px solid #718a9d30;
+  border-radius: 18px;
+  color: #e1eaf3;
+  background:
+    radial-gradient(ellipse at 10% 50%, #7cadbf12, transparent 62%), #111c27;
+  min-height: 110px;
+}
+.orbSpace {
+  flex: 0 0 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+}
+.orb {
+  --level: 0;
+  width: 48px;
+  height: 48px;
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 33% 28%,
+    #c4e3e8,
+    #729daf 45%,
+    #233e52 80%
+  );
+  box-shadow:
+    0 0 28px #8eb9c029,
+    inset -6px -8px 14px #0e1b3380;
+  transition:
+    transform 0.12s ease-out,
+    opacity 0.25s,
+    filter 0.35s;
+  transform: scale(calc(1 + var(--level) * 0.27));
+}
+.orb i,
+.orb b {
+  position: absolute;
+  inset: -8px;
+  border: 1px solid #aac8d533;
+  border-radius: 50%;
+  transition: border-color 0.35s;
+}
+.orb b {
+  inset: -15px;
+  border-color: #aac8d515;
+}
+.presenceCopy {
+  min-width: 0;
+}
+.presenceCopy strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.presenceCopy p {
+  font-size: 12px;
+  color: #a5b8c9;
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+.eyebrow {
+  display: block;
+  letter-spacing: 0.18em;
+  font-size: 9px;
+  margin-bottom: 8px;
+  color: #98b8cb;
+}
+.presence[data-state="listening"] .orb {
+  box-shadow:
+    0 0 30px #9bc8c540,
+    inset -6px -8px 14px #0e1b3380;
+}
+.presence[data-state="listening"] .orb i {
+  border-color: #b4dcdb80;
+}
+.presence[data-state="thinking"] .orb i,
+.presence[data-state="buffering"] .orb i,
+.presence[data-state="transcribing"] .orb i {
+  border-top-color: #d2e1eeaa;
+  animation: orbit 2.4s linear infinite;
+}
+.presence[data-state="speaking"] .orb {
+  animation: voiceFlow 1.3s ease-in-out infinite alternate;
+}
+.presence[data-state="saving"] .orb,
+.presence[data-state="requesting"] .orb {
+  animation: breathe 2s ease-in-out infinite;
+}
+.presence[data-state="interrupted"] .orb {
+  opacity: 0.5;
+  transform: scale(0.88);
+}
+.presence[data-state="error"] .orb {
+  filter: saturate(0.25);
+  opacity: 0.65;
+}
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes voiceFlow {
+  to {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presence .orb,
+  .presence .orb i,
+  .presence .orb b {
+    animation: none !important;
+    transition: none;
+    transform: none;
+  }
+}
+@media (max-width: 480px) {
+  .presence {
+    gap: 10px;
+    padding: 12px;
+  }
+  .orbSpace {
+    flex-basis: 60px;
+  }
+}
+
+.ambient {
+  width: min(860px, 100%);
+  margin: auto;
+  padding: clamp(24px, 5vw, 72px);
+  color: var(--nx-text, #e1eaf3);
+  background: radial-gradient(ellipse at 50% 20%, #8e9bbd0d, transparent 65%);
+  text-align: center;
+}
+.ambient .row {
+  justify-content: center;
+}
+.ambient > p {
+  color: #adbdcd;
+  line-height: 1.6;
+}
+.ambient > small {
+  display: block;
+  max-width: 570px;
+  margin: 16px auto;
+  color: #91a2b6;
+  line-height: 1.6;
+}
+.background {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 22px 0 10px;
+  font-size: 13px;
+}
+.background input {
+  width: auto;
+}
+.conversationText {
+  text-align: left;
+  margin: 30px 0;
+  max-height: 280px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.conversationText p {
+  color: #bdc9d8;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.conversationText small {
+  display: block;
+  color: #91a2b6;
+  letter-spacing: 0.15em;
+  font-size: 10px;
+}

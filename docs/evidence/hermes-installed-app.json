@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-09-10",
+  "method": "installed Ary Nexus native accessibility UI",
+  "storage": "Supabase",
+  "health": "ready",
+  "healthLatencyMs": 424,
+  "explicitSubmissionApproval": true,
+  "responseReceived": true,
+  "exactResultReviewApproved": true,
+  "finalStatus": "COMPLETED",
+  "unrelatedApprovalUntouched": true,
+  "sourceActionAndJobIdsVisible": true,
+  "diagnosticResponse": "Delegated diagnostic job received. No modifications or external actions performed.",
+  "sideEffectClaim": "Worker-reported; independently audited tool records separately"
+}

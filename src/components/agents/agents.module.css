@@ -1,0 +1,188 @@
+.panel {
+  color: #e8edf6;
+  padding: 28px;
+  border: 1px solid #adbed429;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at top left, #718eb419, transparent 60%), #111923;
+}
+.panel header > span,
+.detail > div > span {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #b3c3d7;
+}
+.panel h2 {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.panel p {
+  line-height: 1.7;
+  font-size: 13px;
+}
+.panel small {
+  color: #bac7d9;
+  line-height: 1.65;
+  font-size: 11px;
+}
+.panel details {
+  border-top: 1px solid #b3c4db24;
+  padding: 16px 0;
+}
+.panel summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.form,
+.detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 20px 0;
+}
+.wide {
+  grid-column: 1/-1;
+}
+.panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.panel input,
+.panel select,
+.panel textarea {
+  border: 1px solid #bac9df44;
+  border-radius: 8px;
+  color: #eff4fb;
+  background: #101923;
+  padding: 10px;
+  min-width: 0;
+  width: 100%;
+}
+.panel textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+.panel button {
+  border: 1px solid #bdcce245;
+  background: #243245;
+  color: #f0f5fd;
+  border-radius: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  margin: 4px 6px 4px 0;
+  font-size: 12px;
+}
+.panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.panel button[aria-pressed="true"],
+.panel button:focus-visible {
+  outline: 1px solid #d0e4f5;
+  outline-offset: 2px;
+}
+.graph {
+  height: 390px;
+  margin-block: 24px;
+  background: #0d1520;
+  border: 1px solid #9cb2cf2d;
+  border-radius: 15px;
+  overflow: hidden;
+}
+.worker {
+  width: 230px;
+  height: 140px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: linear-gradient(120deg, #263b4e, #172435);
+  color: #f1f4f9;
+  border: 1px solid #a5bcd45c;
+  border-radius: 14px;
+  padding: 16px;
+}
+.worker > span {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.worker strong {
+  font-size: 14px;
+}
+.worker small {
+  font-size: 10px;
+}
+.worker[data-selected="true"] {
+  border-color: #d8eafa;
+  box-shadow: 0 0 0 3px #a5c1df20;
+}
+.worker[data-active="true"] {
+  animation: working 2.4s ease-in-out infinite;
+}
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.detail {
+  padding-top: 22px;
+  border-top: 1px solid #9cb2cf2d;
+}
+.panel [role="alert"] {
+  border-left: 2px solid #dfaf8b;
+  padding: 14px;
+  color: #f0d3b9;
+}
+@keyframes working {
+  50% {
+    box-shadow: 0 0 20px #abcde52b;
+    border-color: #c9dbe6;
+  }
+}
+@media (max-width: 900px) {
+  .panel {
+    padding: 18px;
+  }
+  .form,
+  .detail {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .worker {
+    animation: none !important;
+  }
+  .graph :global(.react-flow__edge.animated path) {
+    animation: none !important;
+  }
+}
+
+.graph :global(.react-flow__controls-button) {
+  padding: 0;
+  margin: 0;
+  width: 30px;
+  height: 30px;
+  min-height: 0;
+  border-radius: 0;
+  color: #dce7f5;
+}
+.graph :global(.react-flow__controls-button svg) {
+  display: block;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.worker strong,
+.worker small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

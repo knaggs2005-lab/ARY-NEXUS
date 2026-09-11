@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "provider": "hermes",
+  "storage": "isolated_local_owner",
+  "productionMemoryModified": false,
+  "cancellationConfirmed": true,
+  "sideEffects": "Independent remote execution-log review required",
+  "healthStatus": "ready",
+  "healthLatencyMs": 686,
+  "mandatoryApprovalBeforeDispatch": true,
+  "stopRequestLatencyMs": 1310,
+  "stopRequested": true,
+  "observedStatus": "CANCELLED",
+  "pollCount": 2,
+  "confirmedCancellationLatencyMs": 1761,
+  "replayWithoutRemoteRedispatch": true,
+  "jobOutcomeStatuses": {
+    "submission": "pending",
+    "stop_request": "pending",
+    "confirmed_cancellation": "failure"
+  },
+  "controlActionsSucceeded": true,
+  "auditAndOutcomeLinked": true,
+  "actionCount": 7,
+  "outcomeCount": 7,
+  "localFixtureCleanup": true,
+  "submissionHttpAttempts": 1,
+  "stopHttpAttempts": 1,
+  "totalLatencyMs": 2949
+}

@@ -1,0 +1,15 @@
+{
+  "health": {
+    "connected": true,
+    "endpointConfigured": true,
+    "credentialsConfigured": true,
+    "restrictedWorkerConfirmed": true,
+    "latencyMs": 662,
+    "checkedAt": "2026-09-10T21:35:30.002Z",
+    "status": "ready",
+    "streaming": true,
+    "error": null
+  },
+  "liveJobTest": "not_run",
+  "sideEffects": "This command only checks capabilities and tool inventory; no job is submitted"
+}

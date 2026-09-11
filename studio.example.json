@@ -1,0 +1,89 @@
+{
+  "devices": [
+    {
+      "id": "key-light",
+      "name": "Key light",
+      "kind": "light",
+      "adapter": "amaran",
+      "node_id": "REPLACE_WITH_INDIVIDUAL_FIXTURE_NODE_ID",
+      "location_id": "studio",
+      "position": {
+        "x": 30,
+        "y": 40
+      }
+    }
+  ],
+  "scenes": [
+    {
+      "id": "podcast",
+      "name": "Podcast lighting",
+      "aliases": ["podcast mode"],
+      "steps": [
+        {
+          "id": "warmth",
+          "device_id": "key-light",
+          "command": {
+            "verb": "cct",
+            "value": 3200
+          },
+          "depends_on": [],
+          "required": true
+        },
+        {
+          "id": "brightness",
+          "device_id": "key-light",
+          "command": {
+            "verb": "intensity",
+            "value": 450
+          },
+          "depends_on": ["warmth"],
+          "required": true
+        },
+        {
+          "id": "wake",
+          "device_id": "key-light",
+          "command": {
+            "verb": "sleep",
+            "value": false
+          },
+          "depends_on": ["brightness"],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "recording",
+      "name": "Recording lighting",
+      "aliases": ["recording mode", "recording setup"],
+      "steps": [
+        {
+          "id": "brightness",
+          "device_id": "key-light",
+          "command": {
+            "verb": "intensity",
+            "value": 600
+          },
+          "depends_on": [],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "locations": [
+    {
+      "id": "studio",
+      "name": "Studio",
+      "kind": "studio"
+    },
+    {
+      "id": "home",
+      "name": "Home",
+      "kind": "home"
+    },
+    {
+      "id": "office",
+      "name": "Office",
+      "kind": "office"
+    }
+  ]
+}

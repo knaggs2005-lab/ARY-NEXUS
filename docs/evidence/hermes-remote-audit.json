@@ -1,0 +1,12 @@
+{
+  "verifiedAt": "2026-09-10T21:33:00Z",
+  "method": "authenticated VPS console, read-only SQLite aggregate queries",
+  "sessionCountAtSnapshot": 6,
+  "sessionToolCallCount": 0,
+  "toolMessageCount": 0,
+  "credentialCacheAbsent": true,
+  "limitations": [
+    "Not a complete filesystem or network-egress forensic attestation",
+    "Later cancellation tests add sessions; counts represent this snapshot"
+  ]
+}

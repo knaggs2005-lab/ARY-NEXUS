@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-10",
+  "source": "actual VPS console observations",
+  "scope": "loopback only, no model inference",
+  "authentication": "passed",
+  "disabled_inventory": "passed",
+  "non_allowlisted_routes": "404",
+  "local_inference_guard": "failed closed",
+  "replay_before_replacement": "same run",
+  "replay_after_replacement": "same run",
+  "capabilities_latency_ms": [
+    2,
+    1,
+    2
+  ],
+  "total_check_latency_ms": [
+    911,
+    486,
+    466
+  ],
+  "public_tls": "not enabled",
+  "ary_live_diagnostic": "pending",
+  "existing_model_key_transferred": false,
+  "complete": false,
+  "resolved_shutdown_grace": "45s"
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "approved-workspace",
+    "owner_user_id": "00000000-0000-4000-8000-000000000000",
+    "transport": "http",
+    "url": "https://mcp.example.com/mcp",
+    "origin": "mcp",
+    "token_env": "ARY_EXAMPLE_MCP_TOKEN",
+    "tools": [
+      {
+        "name": "lookup_document",
+        "description": "Find a document in the approved workspace",
+        "capabilities": ["locate supporting documents"],
+        "input_schema": {
+          "type": "object",
+          "properties": { "query": { "type": "string", "minLength": 1 } },
+          "required": ["query"],
+          "additionalProperties": false
+        }
+      }
+    ]
+  }
+]

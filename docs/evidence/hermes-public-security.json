@@ -1,0 +1,42 @@
+{
+  "verifiedAt": "2026-09-10T21:33:25.187Z",
+  "transport": "real_https_certificate_verified",
+  "success": true,
+  "checks": [
+    {
+      "name": "authenticated",
+      "status": 200,
+      "passed": true
+    },
+    {
+      "name": "missing_key",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "name": "wrong_key",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "name": "configuration_blocked",
+      "status": 404,
+      "passed": true
+    },
+    {
+      "name": "profile_alias_blocked",
+      "status": 404,
+      "passed": true
+    },
+    {
+      "name": "remote_approval_blocked",
+      "status": 404,
+      "passed": true
+    },
+    {
+      "name": "chat_api_blocked",
+      "status": 404,
+      "passed": true
+    }
+  ]
+}

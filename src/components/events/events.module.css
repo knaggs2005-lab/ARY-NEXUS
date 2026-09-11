@@ -1,0 +1,75 @@
+.inspector {
+  border-top: 1px solid #b8cae324;
+  border-bottom: 1px solid #b8cae324;
+  padding: 24px 0;
+  margin-bottom: 24px;
+  color: #aebbcc;
+}
+.inspector header,
+.inspector footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.inspector h2 {
+  color: #ebf0f5;
+  font-size: 20px;
+  margin: 0;
+}
+.inspector p {
+  font-size: 12px;
+  margin: 6px 0;
+}
+.inspector label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+.timeline {
+  max-height: 420px;
+  overflow: auto;
+  margin: 20px 0;
+}
+.timeline article {
+  border-left: 1px solid #b8cae333;
+  margin: 0 0 2px 2px;
+  padding: 12px 18px;
+}
+.timeline article[data-severity="warning"] {
+  border-color: #e7b97a;
+}
+.timeline article[data-severity="error"],
+.timeline article[data-severity="critical"] {
+  border-color: #e59b9e;
+}
+.row {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.row strong {
+  color: #ebf0f5;
+}
+.row time {
+  font-variant-numeric: tabular-nums;
+}
+.inspector pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  padding: 12px;
+  background: #080c12;
+}
+.inspector summary {
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.inspector footer span {
+  font-size: 11px;
+}

@@ -1,0 +1,346 @@
+.surface {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  margin: 16px 0;
+  padding: 24px;
+  border: 1px solid #ffffff19;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #162924f5, #101b20fa);
+  color: #edf5f1;
+  box-shadow:
+    0 12px 32px #0c1c1812,
+    inset 0 1px #ffffff09;
+}
+.surface::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  inset: -50%;
+  opacity: 0.42;
+  background:
+    radial-gradient(ellipse at 25% 40%, #72b3a322, transparent 40%),
+    radial-gradient(ellipse at 70% 65%, #8496b31a, transparent 40%);
+}
+.surface[data-active="true"]::before {
+  animation: field 7s ease-in-out infinite alternate;
+}
+.surface h4 {
+  margin: 18px 0 8px;
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+}
+.surface p,
+.surface small {
+  color: #b6c9c1;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.surface summary {
+  color: #b6c9c1;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 12px 0;
+}
+.surface pre {
+  font-size: 11px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.surface button {
+  background: #ffffff09;
+  border: 1px solid #ffffff25;
+  color: #dfede6;
+  transition:
+    background 0.2s,
+    transform 0.2s,
+    border-color 0.2s;
+}
+.surface button:hover:not(:disabled) {
+  background: #ffffff14;
+  border-color: #b5d6c866;
+  transform: translateY(-1px);
+}
+.surface button:focus-visible {
+  outline: 2px solid #b5d6c8;
+  outline-offset: 4px;
+}
+.surface button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.surface .approve {
+  background: #d7e9df;
+  color: #16352a;
+}
+.surface .approve:hover:not(:disabled) {
+  background: #edf5f1;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.eyebrow {
+  color: #aac3b9;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+}
+.progress {
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: #12221f;
+  color: #dfede6;
+}
+.status {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  min-height: 22px;
+}
+.light {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9fbab0;
+  flex-shrink: 0;
+}
+.progress[data-phase="checking"] .light,
+.progress[data-phase="approving"] .light,
+.progress[data-phase="executing"] .light {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+.progress[data-phase="succeeded"] .light {
+  background: #c7e8d4;
+  box-shadow: 0 0 14px #b0dfc440;
+}
+.progress[data-phase="error"] .light {
+  background: #e3b9a0;
+}
+.steps {
+  display: flex;
+  padding: 0;
+  margin: 16px 0 0;
+  list-style: none;
+  gap: 0;
+}
+.steps li {
+  flex: 1;
+  font-size: 10px;
+  color: #8ca399;
+  border-top: 1px solid #ffffff18;
+  padding-top: 8px;
+  transition:
+    color 0.35s,
+    border-color 0.35s;
+}
+.steps li[data-reached="true"] {
+  color: #dceee4;
+  border-color: #abcbbb;
+}
+.receipt {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  margin: 16px 0;
+  background: #12221f;
+  border: 1px solid #abcbbb25;
+  border-radius: 14px;
+  color: #edf5f1;
+  animation: arrive 0.5s ease-out both;
+}
+.connection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 24px;
+  color: #bfd6cb;
+}
+.connection span {
+  border: 1px solid #abcbbb40;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+.connection i {
+  width: 1px;
+  min-height: 22px;
+  flex: 1;
+  background: linear-gradient(#abcbbb70, #abcbbb20);
+  margin: 5px 0;
+}
+.receiptBody {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.receiptBody strong {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.receiptBody > span:not(.eyebrow),
+.receiptBody small {
+  font-size: 11px;
+  color: #b6c9c1;
+}
+.receiptBody code {
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.taskEntrance {
+  animation: arrive 0.5s ease-out both;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.45;
+    box-shadow: 0 0 0 6px #abcbbb12;
+  }
+}
+@keyframes field {
+  to {
+    transform: translate3d(5%, 3%, 0);
+    opacity: 0.65;
+  }
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .surface::before,
+  .progress .light,
+  .receipt,
+  .taskEntrance {
+    animation: none !important;
+  }
+  .surface button,
+  .steps li {
+    transition: none;
+  }
+  .surface button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+@media (max-width: 600px) {
+  .surface {
+    padding: 16px;
+  }
+  .receipt {
+    padding: 14px;
+    gap: 12px;
+  }
+}
+.changes {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  color: inherit;
+}
+.changes > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.changes strong {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.changes > div > span:first-of-type {
+  opacity: 0.7;
+}
+.taskCard {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  border-left: 2px solid transparent;
+  transition:
+    border-color 0.4s,
+    background-color 0.4s;
+}
+.taskCard[data-completed="true"] {
+  border-left-color: #729a87;
+  background: #a7c5b20a;
+}
+.taskCard > small {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+.taskCard > button {
+  margin: 8px 0;
+}
+.editor {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.editor label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.editor input,
+.editor select,
+.editor textarea {
+  min-width: 0;
+  width: 100%;
+  background: #12221f;
+  color: #edf5f1;
+  border: 1px solid #ffffff30;
+  border-radius: 6px;
+  padding: 10px;
+}
+.editor :focus-visible {
+  outline: 2px solid #b5d6c8;
+  outline-offset: 2px;
+}
+.changedField {
+  animation: fieldChanged 1.8s ease-out both;
+}
+@keyframes fieldChanged {
+  0% {
+    background-color: #9fbdac50;
+    transform: translateY(2px);
+  }
+  100% {
+    background-color: transparent;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .changedField {
+    animation: none;
+  }
+  .taskCard {
+    transition: none;
+  }
+}
+.editor {
+  color-scheme: dark;
+}
+.editor ~ button {
+  margin: 8px 8px 0 0;
+}

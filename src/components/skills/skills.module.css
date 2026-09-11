@@ -1,0 +1,244 @@
+.root {
+  color: var(--nexus-text, #e9edfa);
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.heading h2 {
+  font-size: clamp(24px, 3vw, 38px);
+  font-weight: 450;
+  letter-spacing: -0.04em;
+  margin: 8px 0;
+}
+.heading small,
+.node small {
+  letter-spacing: 0.13em;
+  font-size: 10px;
+  color: #a4b2d3;
+}
+.root p {
+  color: #a8b2c9;
+  line-height: 1.6;
+}
+.root label {
+  display: grid;
+  gap: 8px;
+  color: #bbc5de;
+  font-size: 12px;
+}
+.root input,
+.root textarea,
+.root select {
+  background: #101725;
+  color: #eef1fa;
+  border: 1px solid #7182a340;
+  border-radius: 9px;
+  padding: 11px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.root button {
+  background: #26314b77;
+  color: #e6ebfa;
+  border: 1px solid #899bcb44;
+  border-radius: 9px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+.root button:hover:not(:disabled),
+.root button[aria-pressed="true"] {
+  background: #43527088;
+  border-color: #a1b4e388;
+}
+.root button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.root :focus-visible {
+  outline: 2px solid #c0cdf4;
+  outline-offset: 3px;
+}
+.state {
+  border-left: 2px solid #a9b9e9;
+  padding: 10px;
+  font-size: 12px;
+  color: #c6d2ef;
+}
+.toolbar,
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.examples button {
+  font-size: 11px;
+  background: transparent;
+}
+.propose {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+.propose label {
+  flex: 1;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  border: 1px solid #8d9ab633;
+  border-radius: 20px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 25% 15%, #44436724, transparent 70%), #0c1220;
+}
+.canvas {
+  height: 410px;
+  min-width: 0;
+}
+.inspector {
+  padding: 24px;
+  border-left: 1px solid #8895b326;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  background: #141b2b66;
+  backdrop-filter: blur(14px);
+}
+.inspector p {
+  font-size: 12px;
+}
+.node {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+  padding: 8px;
+}
+.node strong {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.node span {
+  font: 11px monospace;
+  color: #a4b2d3;
+}
+.sequence {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+}
+.sequence button {
+  font-size: 11px;
+}
+.details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.root textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+.root .json {
+  height: 360px;
+  font: 12px/1.6 monospace;
+}
+.note {
+  font-size: 12px;
+  max-width: 760px;
+}
+.launch {
+  border-top: 1px solid #8b9bb52b;
+  padding-top: 20px;
+  display: grid;
+  gap: 14px;
+  max-width: 700px;
+}
+.launch button {
+  justify-self: start;
+}
+.error {
+  color: #ffd0b7 !important;
+  border-left: 2px solid #d49b80;
+  padding: 12px;
+}
+.triggers article {
+  padding: 20px 0;
+  border-bottom: 1px solid #8b9bb52b;
+}
+.triggers small {
+  overflow-wrap: anywhere;
+}
+.root details {
+  padding: 15px 0;
+  border-block: 1px solid #8b9bb526;
+}
+.root summary {
+  cursor: pointer;
+  color: #b9c6e1;
+  font-size: 13px;
+}
+.root details button {
+  margin: 10px 0;
+}
+@media (max-width: 1050px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .inspector {
+    border-left: 0;
+    border-top: 1px solid #8895b326;
+    grid-template-columns: 1fr 1fr;
+  }
+  .heading {
+    align-items: start;
+    flex-direction: column;
+  }
+  .details {
+    grid-template-columns: 1fr;
+  }
+  .propose {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root * {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.canvas :global(.react-flow) {
+  background: transparent !important;
+}
+.canvas :global(.react-flow__controls-button svg) {
+  fill: #dce6fa;
+}
+
+.root {
+  scroll-margin-top: 200px;
+}
+.root :is(input, select, textarea, button) {
+  scroll-margin-block: 200px 100px;
+}
+
+.canvas :global(.react-flow__controls-button) {
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+}

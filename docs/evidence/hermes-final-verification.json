@@ -1,0 +1,18 @@
+{
+  "verifiedAt": "2026-09-10",
+  "tests": {
+    "files": 87,
+    "passed": 1508,
+    "durationSeconds": 24.17,
+    "hermesFocused": 45,
+    "bootstrapPerMode": 17,
+    "yamlSecurityChecks": 30,
+    "loopbackHarnessTests": 3
+  },
+  "typecheck": "passed",
+  "formatting": "passed",
+  "productionBuild": "passed",
+  "buildLocation": "isolated mirror; installed output preserved",
+  "temporaryCredentialTransferCleanup": true,
+  "existingSchemasUiProvidersPreserved": true
+}

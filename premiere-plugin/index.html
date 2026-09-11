@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        background: #121d26;
+        color: #e2e9ee;
+        font: 14px sans-serif;
+        padding: 20px;
+      }
+      h2 {
+        font-weight: 400;
+      }
+      input,
+      button {
+        padding: 10px;
+        margin: 8px 0;
+        width: 100%;
+      }
+      #status {
+        white-space: pre-wrap;
+      }
+      small {
+        color: #a9bdc9;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Ary Creative Bridge</h2>
+    <p>Only reviewed Ary actions. No autonomous editing.</p>
+    <label
+      >Local bridge token<input
+        id="token"
+        type="password"
+        autocomplete="off" /></label
+    ><button id="connect">Connect to local Ary</button
+    ><button id="disconnect">Disconnect</button>
+    <p id="status">
+      Disconnected. Configure Ary's owner and allowed folders first.
+    </p>
+    <small
+      >Keep this panel open during an action. If an operation is uncertain,
+      inspect Premiere and Ary’s audit receipt before retrying. Queued exports
+      are not proof of completed renders.</small
+    >
+    <script src="main.js"></script>
+  </body>
+</html>

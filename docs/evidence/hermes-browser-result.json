@@ -1,0 +1,9 @@
+{
+  "checked_at": "2026-09-10T08:37:38.878Z",
+  "mode": "isolated-unconfigured-browser",
+  "checks": 12,
+  "passed": true,
+  "live_connection": false,
+  "side_effects": "No cloud credentials/endpoint provided; no outbound provider request possible",
+  "cleanup": "fixture removed in finally"
+}

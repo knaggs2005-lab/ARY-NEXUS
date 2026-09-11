@@ -1,0 +1,104 @@
+{
+  "before": {
+    "metric": "production dashboard client reference chunks (not total route transfer)",
+    "raw_bytes": 673594,
+    "gzip_bytes": 186863,
+    "chunks": [
+      "static/chunks/44530001-10d93d9b4ded3079.js",
+      "static/chunks/8669-eac669b352caf323.js",
+      "static/chunks/5528-f7491835cc892c88.js",
+      "static/chunks/app/mobile/page-b918378cde5c8945.js"
+    ]
+  },
+  "after": {
+    "environment": {
+      "node": "v26.7.0",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "note": "Local CPU samples; not physical-phone, hosted database, network or total route-transfer benchmarks",
+    "commands": [
+      {
+        "count": 100,
+        "indexing": {
+          "median_ms": 0.114,
+          "p95_ms": 0.175
+        },
+        "query": {
+          "median_ms": 0.019,
+          "p95_ms": 0.028
+        }
+      },
+      {
+        "count": 1000,
+        "indexing": {
+          "median_ms": 0.931,
+          "p95_ms": 1.208
+        },
+        "query": {
+          "median_ms": 0.078,
+          "p95_ms": 0.094
+        }
+      },
+      {
+        "count": 10000,
+        "indexing": {
+          "median_ms": 9.165,
+          "p95_ms": 10.199
+        },
+        "query": {
+          "median_ms": 0.406,
+          "p95_ms": 1.019
+        }
+      }
+    ],
+    "graph": [
+      {
+        "count": 180,
+        "rendered_nodes": 50,
+        "projection": {
+          "median_ms": 0.092,
+          "p95_ms": 0.11
+        },
+        "layout": {
+          "median_ms": 0.043,
+          "p95_ms": 0.057
+        }
+      },
+      {
+        "count": 1000,
+        "rendered_nodes": 50,
+        "projection": {
+          "median_ms": 0.351,
+          "p95_ms": 0.578
+        },
+        "layout": {
+          "median_ms": 0.029,
+          "p95_ms": 0.031
+        }
+      },
+      {
+        "count": 10000,
+        "rendered_nodes": 50,
+        "projection": {
+          "median_ms": 3.468,
+          "p95_ms": 3.9
+        },
+        "layout": {
+          "median_ms": 0.03,
+          "p95_ms": 0.032
+        }
+      }
+    ],
+    "dashboard_reference_chunks": {
+      "raw_bytes": 518789,
+      "gzip_bytes": 145536,
+      "paths": [
+        "static/chunks/44530001-10d93d9b4ded3079.js",
+        "static/chunks/8669-eac669b352caf323.js",
+        "static/chunks/2660-d0a982383036ed87.js",
+        "static/chunks/app/mobile/page-56d273ab1ab66d55.js"
+      ]
+    }
+  }
+}

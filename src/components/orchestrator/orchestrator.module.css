@@ -1,0 +1,77 @@
+.history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 24px;
+}
+.steps {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.step {
+  padding: 22px;
+  border: 1px solid #abc5e026;
+  border-radius: 18px;
+  background: linear-gradient(125deg, #25334577, #111a26aa);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+  overflow-wrap: anywhere;
+}
+.step header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.step header span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.step[data-state="running"] {
+  border-color: #b4c7e2;
+  box-shadow: 0 0 18px #bfd4ee16;
+}
+.step[data-state="verified"] {
+  border-color: #85b9a378;
+}
+.step[data-state="failed"],
+.step[data-state="needs_verification"] {
+  border-color: #dcad7270;
+}
+.step[data-state="skipped"] {
+  opacity: 0.65;
+}
+.step pre {
+  overflow: auto;
+  max-height: 280px;
+  font-size: 12px;
+}
+.live {
+  border-left: 2px solid #bdd2ed;
+  padding: 12px;
+  animation: breathe 1.6s ease-in-out infinite alternate;
+}
+.brief {
+  padding: 24px;
+  margin-block: 24px;
+  border: 1px solid #abc5e026;
+  border-radius: 18px;
+  background: #a8bcdb09;
+}
+@keyframes breathe {
+  to {
+    border-color: #bdd2ed44;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step {
+    transition: none;
+  }
+  .live {
+    animation: none;
+  }
+}

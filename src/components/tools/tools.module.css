@@ -1,0 +1,233 @@
+.tools {
+  color: #bfc8d8;
+  font-family: var(--nx-font-sans, system-ui);
+}
+.tools header {
+  margin: 20px 0 28px;
+}
+.tools header > span,
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  color: #97a3ba;
+}
+.tools h1 {
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 450;
+  letter-spacing: -0.045em;
+  color: #ecedf5;
+  margin: 12px 0;
+}
+.tools p {
+  line-height: 1.65;
+  font-size: 12px;
+  color: #9cabc0;
+}
+.tools button,
+.tools select,
+.tools input,
+.tools textarea {
+  font: inherit;
+  font-size: 12px;
+  color: #d0d7e5;
+  background: #111824;
+  border: 1px solid #c8cdeb28;
+  border-radius: 7px;
+  padding: 11px;
+}
+.tools button {
+  cursor: pointer;
+  transition:
+    background 160ms,
+    border-color 160ms;
+}
+.tools button:hover,
+.tools button[aria-pressed="true"] {
+  background: #a7acc017;
+  border-color: #b5b3d757;
+}
+.tools button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tools :focus-visible {
+  outline: 2px solid #b4c2da;
+  outline-offset: 3px;
+}
+.search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.search input {
+  flex: 1;
+  min-width: 120px;
+  padding: 16px;
+}
+.filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.filters small,
+.note {
+  font-size: 10px !important;
+  color: #8b9bb2 !important;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: 540px;
+  border-top: 1px solid #bdc7e023;
+}
+.list {
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 24px;
+}
+.list > button {
+  width: 100%;
+  display: flex;
+  gap: 16px;
+  align-items: start;
+  text-align: left;
+  padding: 21px 12px;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+.list strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: #dce1ee;
+}
+.list p {
+  margin: 6px 0;
+}
+.list > button > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.list small {
+  display: block;
+  font-size: 10px;
+  color: #899bb5;
+  margin-top: 6px;
+}
+.list > button > span {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.tools i {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #687a91;
+  border-radius: 50%;
+  margin: 5px 0;
+}
+.tools i[data-state="connected"] {
+  background: #a5c0b3;
+  box-shadow: 0 0 10px #accab82c;
+}
+.tools i[data-state="available"] {
+  background: #b8bfd7;
+}
+.tools i[data-state="offline"] {
+  background: #c39585;
+}
+.workspace aside {
+  background: linear-gradient(155deg, #75708010, transparent 65%);
+  padding: 26px 22px;
+  border-left: 1px solid #bfcae521;
+  max-height: 780px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.tools h2 {
+  font-size: 22px;
+  font-weight: 450;
+  color: #dce1ef;
+  letter-spacing: -0.025em;
+}
+.state {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+}
+.tools dl {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.tools dt {
+  color: #8d9db3;
+  margin-top: 16px;
+}
+.tools dd {
+  margin: 0;
+}
+.tools dd small {
+  display: block;
+  color: #8b9bb2;
+}
+.tools details {
+  margin: 20px 0;
+  font-size: 11px;
+}
+.tools summary {
+  cursor: pointer;
+}
+.tools pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  max-height: 300px;
+  overflow: auto;
+  color: #b8c6dc;
+}
+.proposal textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  margin: 12px 0;
+}
+.proposal button {
+  margin: 4px;
+}
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 290px;
+  }
+  .list {
+    padding-right: 10px;
+  }
+  .workspace aside {
+    padding: 20px 14px;
+  }
+}
+@media (max-width: 720px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .workspace aside {
+    border-left: 0;
+    border-top: 1px solid #bdc7e023;
+  }
+  .search {
+    flex-wrap: wrap;
+  }
+  .list {
+    max-height: 350px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tools button {
+    transition: none;
+  }
+}

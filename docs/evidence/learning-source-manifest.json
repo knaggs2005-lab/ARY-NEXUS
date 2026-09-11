@@ -1,0 +1,21 @@
+{
+  "inspectedAt": "2026-09-10",
+  "sources": [
+    {
+      "path": "/Users/austin/Documents/ChatGPT/Wag Trails/README.md",
+      "sha256": "beba741fa86b69c252896491c1f626fd148434b19523035cb679ca41fdc7411a",
+      "bytes": 2261
+    },
+    {
+      "path": "/Users/austin/Documents/ChatGPT/Clevaryn/docs/growth-studio-milestone.md",
+      "sha256": "b04ae9f969d9ab0f3813837a0f4c7c4a2ff7238ba818b6153d1025d95212ba29",
+      "bytes": 10052
+    },
+    {
+      "path": "/Users/austin/Documents/Clevaryn/Premiere Plugins/QACutter/ary-nexus/ARY_NEXUS_ROADMAP.md",
+      "sha256": "dce5bfd0a4b29c62933eb3e92d22c20c1a6ff31e596889b6d4d5baf74c1aaae4",
+      "bytes": 110713
+    }
+  ],
+  "importMode": "Selected source-attributed excerpts through existing Ary conversation extraction; not a bulk file import"
+}

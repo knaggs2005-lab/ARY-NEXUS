@@ -1,0 +1,137 @@
+.launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1500;
+  background: #171b29;
+  color: #eef0ff;
+  border: 1px solid #ffffff24;
+  border-radius: 14px;
+  padding: 12px 18px;
+  box-shadow: 0 10px 40px #0005;
+  cursor: pointer;
+}
+.launcher kbd {
+  margin-left: 20px;
+  color: #b5b6ce;
+}
+.dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: 80vh;
+  padding: 0;
+  border: 1px solid #ffffff25;
+  border-radius: 20px;
+  color: #f0f1f8;
+  background: #111522f5;
+  box-shadow: 0 32px 120px #0009;
+  overflow: hidden;
+}
+.dialog::backdrop {
+  background: #030713a8;
+  backdrop-filter: blur(8px);
+}
+.body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+  gap: 12px;
+}
+.top,
+.tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.top {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #bdbbd6;
+}
+.dialog input {
+  font: inherit;
+  font-size: 18px;
+  background: #ffffff08;
+  color: inherit;
+  padding: 16px;
+  border: 1px solid #ffffff20;
+  border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.dialog button {
+  background: #ffffff09;
+  color: inherit;
+  border: 1px solid #ffffff20;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+}
+.dialog button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.dialog :focus-visible {
+  outline: 2px solid #b6a9ed;
+  outline-offset: 3px;
+}
+.tools {
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.body p {
+  margin: 0;
+  font-size: 13px;
+  color: #d5c4bc;
+}
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  min-height: 80px;
+}
+.results li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.results li[aria-selected="true"] {
+  background: #aea0ef1c;
+}
+.results li div {
+  flex: 1;
+  min-width: 0;
+}
+.results small {
+  display: block;
+  opacity: 0.65;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 480px;
+}
+.tag {
+  font-size: 10px;
+  border: 1px solid #ffffff23;
+  border-radius: 6px;
+  padding: 4px;
+  min-width: 46px;
+  text-align: center;
+}
+.body footer {
+  font-size: 11px;
+  color: #9fabc0;
+  line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .results li {
+    transition: none;
+  }
+}

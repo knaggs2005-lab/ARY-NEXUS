@@ -1,0 +1,25 @@
+{
+  "import_key": "",
+  "account_key": "",
+  "parent_id": null,
+  "as_of": "",
+  "observed_at": "",
+  "source_label": "",
+  "source_reference": "",
+  "payload": {
+    "account": {
+      "name": "",
+      "institution": "",
+      "kind": "cash",
+      "currency": "USD"
+    },
+    "balance_minor": null,
+    "coverage": null,
+    "transactions": [],
+    "bills": [],
+    "holdings": [],
+    "holdings_complete": false,
+    "entity_ids": [],
+    "goal_ids": []
+  }
+}

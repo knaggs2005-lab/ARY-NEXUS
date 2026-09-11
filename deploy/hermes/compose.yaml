@@ -1,0 +1,40 @@
+# REVIEW CANDIDATE ONLY: do not start before completing README gates.
+services:
+  hermes:
+    image: nousresearch/hermes-agent@sha256:ba6caded2d3cf57336b881cf54f8533d384095f06360324228f0d2df2e30c66b
+    user: "10000:10000"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 1.0
+    restart: "no"
+    stop_grace_period: 45s
+    working_dir: /opt/hermes
+    entrypoint: [/opt/hermes/.venv/bin/python]
+    command: [/deployment/api-only.py]
+    env_file: [./worker-secrets.env]
+    environment:
+      HOME: /opt/data
+      HERMES_HOME: /opt/data
+      PYTHONPATH: /opt/hermes
+      PYTHONDONTWRITEBYTECODE: "1"
+      HERMES_IGNORE_RULES: "1"
+      HERMES_DISABLE_LAZY_INSTALLS: "1"
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_PORT: "8642"
+      API_SERVER_CORS_ORIGINS: ""
+    ports: ["127.0.0.1:8642:8642"]
+    volumes:
+      - ./data:/opt/data
+      - ./config.yaml:/opt/data/config.yaml:ro
+      - ./api-only.py:/deployment/api-only.py:ro
+    tmpfs: ["/tmp:size=128m,noexec,nosuid,nodev"]
+    labels:
+      traefik.enable: "false"
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }

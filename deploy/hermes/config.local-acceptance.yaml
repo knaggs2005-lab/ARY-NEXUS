@@ -1,0 +1,34 @@
+# NO INFERENCE: pair with ARY_HERMES_LOCAL_ACCEPTANCE=1, no provider key.
+# Pinned Hermes provider registry ID; OPENAI_API_KEY authenticates this provider.
+model:
+  provider: openai-api
+  default: gpt-4o-mini
+fallback_providers: []
+toolsets: []
+platform_toolsets:
+  api_server: []
+plugins:
+  enabled: []
+mcp_servers: {}
+hooks: {}
+hooks_auto_accept: false
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+  provider: ""
+  nudge_interval: 0
+skills:
+  external_dirs: []
+  project_discovery: false
+  trusted_project_dirs: []
+  inline_shell: false
+gateway:
+  api_server:
+    max_concurrent_runs: 1
+
+# Isolated jobs need no automatic auxiliary model requests.
+auxiliary:
+  title_generation:
+    enabled: false
+compression:
+  enabled: false

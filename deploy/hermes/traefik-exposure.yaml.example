@@ -1,0 +1,11 @@
+# OPTIONAL overlay only AFTER localhost acceptance and DNS/TLS checks.
+# Existing host-network Traefik Docker provider can reach bridge container IP.
+services:
+  hermes:
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.ary-hermes.rule: 'Host(`REPLACE_WITH_VERIFIED_DNS_NAME`) && ((Method(`GET`) && (Path(`/v1/capabilities`) || Path(`/v1/toolsets`) || PathRegexp(`^/v1/runs/[a-zA-Z0-9_-]+(/events)?$`))) || (Method(`POST`) && (Path(`/v1/runs`) || PathRegexp(`^/v1/runs/[a-zA-Z0-9_-]+/stop$`))))'
+      traefik.http.routers.ary-hermes.entrypoints: websecure
+      traefik.http.routers.ary-hermes.tls.certresolver: letsencrypt
+      traefik.http.routers.ary-hermes.service: ary-hermes
+      traefik.http.services.ary-hermes.loadbalancer.server.port: '8642'

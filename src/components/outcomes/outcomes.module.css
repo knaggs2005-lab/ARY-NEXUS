@@ -1,0 +1,165 @@
+.workspace {
+  scroll-margin-top: 200px;
+  padding: clamp(16px, 3vw, 40px);
+  color: var(--text-primary, #ededf3);
+  background: radial-gradient(ellipse at 70% 0%, #84709612, transparent 55%);
+  border: 1px solid #ffffff14;
+  border-radius: 20px;
+}
+.header,
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.header h2 {
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 450;
+  letter-spacing: -0.03em;
+  margin: 12px 0;
+}
+.header small {
+  letter-spacing: 0.18em;
+  color: #b5a8c9;
+}
+.muted,
+.header p {
+  color: #a8a5b5;
+  line-height: 1.7;
+}
+.library {
+  max-height: 360px;
+  overflow: auto;
+  margin: 24px 0;
+}
+.row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #ffffff10;
+}
+.row button {
+  text-align: left;
+  flex: 1;
+  background: transparent;
+  border: 0;
+}
+.row span,
+.row strong {
+  display: block;
+}
+.row button span {
+  font-size: 13px;
+  color: #aaa5b5;
+  margin-top: 5px;
+}
+.row [data-state="failure"] {
+  color: #e7ab9e;
+}
+.row [data-state="success"] {
+  color: #a1ccbc;
+}
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.comparison article,
+.recommendation,
+.editor {
+  background: #ffffff04;
+  border: 1px solid #ffffff15;
+  border-radius: 16px;
+  padding: 24px;
+  animation: arrive 0.24s ease-out;
+}
+.comparison dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: 13px;
+}
+.comparison dt {
+  color: #a8a5b5;
+}
+.comparison dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.comparison small {
+  color: #a8a5b5;
+}
+.chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 5px 9px;
+  margin: 4px;
+  border: 1px solid #ffffff19;
+  border-radius: 20px;
+}
+.editor,
+.recommendation {
+  margin: 24px 0;
+}
+.editor label,
+.recommendation label {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.editor textarea {
+  min-height: 70px;
+}
+.workspace pre {
+  max-height: 300px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.workspace details {
+  margin: 16px 0;
+}
+.workspace button {
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+.workspace input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.workspace :focus-visible {
+  outline: 2px solid #b5a8c9;
+  outline-offset: 4px;
+}
+@keyframes arrive {
+  from {
+    opacity: 0.3;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 800px) {
+  .comparison {
+    grid-template-columns: 1fr;
+  }
+  .row {
+    gap: 8px;
+  }
+}

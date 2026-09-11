@@ -1,0 +1,75 @@
+# ARY Nexus — current implementation map
+
+September 10, 2026 · cohesion audit. [Roadmap](../ARY_NEXUS_ROADMAP.md) owns priority/order; [cohesion verification](nexus-cohesion.md) owns this pass's evidence and limitations. The [September 8 snapshot](archive/nexus-current-state-2026-09-08.md) is historical, not current architecture.
+
+## Assessment
+
+One Brain, canonical owner-scoped repositories and one action/permission authority connect the product. Missions, agents, Skills, outcome learning, communications and mobile extend these services. The product is integrated at its core, but production deployment, physical integrations and exhaustive visual acceptance are incomplete. No second intelligence framework or business store was found that warrants replacement.
+
+The runtime stack is Next.js/React/TypeScript, Supabase/PostgreSQL/pgvector, Canvas2D + vgpu, XYFlow for workflows/family graphs, Playwright for scoped browser control, native macOS/UXP/Cinema 4D bridges, and provider interfaces. SwiftUI, Three.js/R3F, Temporal, LiveKit, Mem0, Graphiti, Letta and LiteLLM are not installed runtime implementations. Evaluation/reference notes are not implementation evidence.
+
+## Component ownership and classification
+
+KEEP means retain the implementation; it does not mean every live integration is verified. INCOMPLETE marks a remaining operational gate. REFACTOR identifies measured or concrete debt for later scoped work, not permission for a rewrite.
+
+| System                                            | Classification       | Current owner / evidence boundary                                                                                                                                                                |
+| ------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| App entry, navigation, Ambient/Systems            | KEEP                 | `components/mobile/entry.tsx`, `components/nexus/*`, Dashboard; eleven desktop destinations, five mobile destinations. Shared command index and dispatcher.                                      |
+| Shared design language                            | KEEP / INCOMPLETE    | `app/globals.css` canonical material/font tokens; Nexus/mobile consume them. Domain CSS remains varied; broad visual acceptance incomplete.                                                      |
+| Dashboard composition                             | REFACTOR             | `components/dashboard.tsx`; same conversation state/handlers. Heavy domain screens now dynamic; large controller and desktop bootstrap remain debt.                                              |
+| Orbital navigation / classic fallback             | KEEP                 | `components/spatial/*`; explicit compatibility presentation and failure fallback, not a second backend.                                                                                          |
+| Ary presence                                      | KEEP                 | `components/presence/*`, voice state, backend telemetry. Work states reflect real events; no randomly generated agent work.                                                                      |
+| Nexus realtime/Activity                           | KEEP / INCOMPLETE    | `nexus-event-bus.ts`, event stream, client projector; persisted journal/replay/filter tests. Hosted migration 014 acceptance not rerun.                                                          |
+| Brain / intent routing                            | KEEP                 | `ary-brain-service.ts` and conversation services. Explicit routes reuse ToolRegistry/action requests.                                                                                            |
+| Memory / extraction / reconciliation              | KEEP                 | `memory-service.ts`, reconciliation/contradiction guards, extraction jobs, reviewed facts/evidence/history.                                                                                      |
+| Canonical entities / aliases                      | KEEP                 | `entity-resolution-service.ts`, `entity-service.ts`; exact names/aliases before contextual disambiguation; stable IDs.                                                                           |
+| Hybrid retrieval / temporal facts                 | KEEP                 | RRF semantic + lexical + entity/graph, v4/v5 SQL, scope/status/time/version filtering; no second vector store.                                                                                   |
+| Nexus memory classes / Knowledge                  | KEEP / INCOMPLETE    | `nexus-memory-service.ts`, existing learned memories plus separate source Knowledge; hosted 016 acceptance pending.                                                                              |
+| Reflection                                        | KEEP                 | Reviewed evidence/version proposals, dev-only UI/API; no automatic rewriting of confirmed facts.                                                                                                 |
+| Main graph / WORLD / MEMORY                       | KEEP                 | `nexus-map-service.ts`, atlas projections, Canvas2D/vgpu. Bounded semantic windows. Entity Brain Graph remains a detailed view of the same model.                                                |
+| XYFlow                                            | KEEP                 | Mission Control, agents, Skills visualizations; does not replace canonical entity graph.                                                                                                         |
+| MissionEngine / coordinator                       | KEEP / INCOMPLETE    | CheckpointMissionEngine wraps OrchestratorService, leased owner checkpoints, worker, waits/retries/receipts. Hosted 015/process supervision remain gates.                                        |
+| Mission Control                                   | KEEP                 | Existing plan projection, execution graph, exact tool/approval/cost/evidence details.                                                                                                            |
+| Agent Runtime / Board                             | KEEP                 | Scoped persistent/ephemeral profiles, required purpose, specialization, inherited budgets/tool/memory scopes; Board roles are advisory functions, not invented live workers.                     |
+| Skills / Automations                              | KEEP / INCOMPLETE    | `skill-service.ts` reuses MissionEngine; pinned versions, bounded loops/subskills, reviewed generation; interval/manual triggers create drafts. Hosted worker/live generation not accepted here. |
+| ToolRegistry / discovery / MCP                    | KEEP / INCOMPLETE    | One executable registry + metadata catalogue; MCP preflight/schema/target drift checks. Live MCP endpoints require owner configuration.                                                          |
+| Permissions / approvals / STOP                    | KEEP / INCOMPLETE    | One numeric + capability policy engine, exact one-use fingerprints, owner-only administration, emergency cancellation/mission pause. Hosted 017 remains pending verification.                    |
+| Internal tasks / projects                         | KEEP                 | Existing transactional task/project tools; no duplicate task/project store. Source links, CAS, idempotency, rollback and receipts.                                                               |
+| Audit / outcomes / Economics                      | KEEP                 | Existing actions/outcomes/model_calls/ROI records; reversible evidence-linked lessons and nonfabricated accounting. Owner-history aggregation remains scale debt.                                |
+| ModelRouter                                       | KEEP / INCOMPLETE    | Provider interfaces, policy routing, explicit failure/evidence-only fallback; additional vendor/local endpoints not live-tested this pass.                                                       |
+| Voice                                             | KEEP / INCOMPLETE    | Same Brain/action path, AudioWorklet/VAD/session/barge-in, STT/TTS ports. Physical mic/echo/background/first-audio acceptance remains pending.                                                   |
+| DesktopBridge                                     | KEEP / INCOMPLETE    | Fixed verbs, execFile/argv, owner/Mac/loopback/flag/privacy gates. No arbitrary shell or new control path.                                                                                       |
+| Browser / native computer control                 | KEEP / INCOMPLETE    | Playwright/AX adapters, scoped origins/apps/files, exact actions and STOP; production owner configuration/privacy checks not exercised.                                                          |
+| Perception / camera                               | KEEP / INCOMPLETE    | Explicit source/analysis grants, one-shot captures, expiring RAM frames and source evidence. No always-on camera. Physical acceptance pending.                                                   |
+| Physical World / devices                          | KEEP / INCOMPLETE    | StudioService/DeviceRegistry/locations/scenes/readback, Amaran and HA light adapters. Unconfigured equipment is not ready; no physical Podcast run this pass.                                    |
+| Premiere / Edit Intelligence                      | KEEP / INCOMPLETE    | Existing UXP/QACutter bridge, deterministic tools, media/transcript analysis, source/timecode plans and receipts. Real Adobe edit/export acceptance pending.                                     |
+| CAD / Design                                      | KEEP / INCOMPLETE    | One Cinema 4D SDK adapter, inspect/plan/review/execute. Twelve Python contract tests pass; licensing/native geometry acceptance pending.                                                         |
+| Calendar                                          | KEEP / INCOMPLETE    | Existing OAuth/vault, source context, reviewed create/update; no live event touched here.                                                                                                        |
+| Gmail                                             | KEEP / INCOMPLETE    | Existing selected email storage/evidence/summaries/drafts/explicit sends; no new inbox, no live mail sent.                                                                                       |
+| Calls / communications                            | KEEP / INCOMPLETE    | Phone port/Twilio + channel planning/debrief + unified source projection. Messaging and two-way telephony are unavailable contracts, not functioning channels.                                   |
+| Finance                                           | KEEP / INCOMPLETE    | Source/time-aware read-only statement visibility, no money movement. Real account completeness not established.                                                                                  |
+| Mobile                                            | KEEP / INCOMPLETE    | Dedicated web companion, same APIs/auth/voice/permissions; foreground updates, reviewed capture, bounded graph. Physical HTTPS/install/push/remote device control gates remain.                  |
+| Auth / persistence / migrations                   | KEEP / INCOMPLETE    | Supabase verified bearer identity/RLS/owner scope; demo is localhost development only. 17 SQL migrations exist; live catalogue not checked in this pass.                                         |
+| Vault / local execution host                      | REFACTOR             | Existing encrypted file/receipt storage has single-host assumptions. Supervision, stale locks and distributed recovery need a separate bounded deployment task.                                  |
+| Tests / native fixtures                           | KEEP                 | 86 Vitest files, PGlite SQL integration, process restart fixtures, browser scripts and Python adapter tests. Never equate mocks with live hardware.                                              |
+| Development fixtures                              | KEEP (isolated)      | Explicit mock tools retained for tests/development, unavailable in production executable/catalogue paths. Existing simulation history remains inspectable.                                       |
+| Unused graph query panel / capability placeholder | DEPRECATED / REMOVED | `brain-graph-panel.tsx`, `nexus/capability-view.tsx` had no source/test/script consumers. Active graph/workshop paths remain.                                                                    |
+
+## Architectural debt
+
+- Desktop `dashboard` aggregates owner histories; the bounded mobile response still calls existing full list methods. Permissions, communications, agent and Economics summaries also aggregate histories. SQL pagination transport does not guarantee bounded caller work.
+- Agents/Missions/Skills use typed metadata inside existing records; migration/schema extraction is not part of this pass. Keep one canonical record path until evidence justifies a migration.
+- Single-host encrypted vault/receipts, token refresh, worker supervision and distributed failure recovery need deployed acceptance.
+- No tracked release commit exists in this checkout. Source-live Electron HMR is not a signed, notarized auto-updating release.
+- Hosted 014–017/native/privacy/provider gates are not resolved by local tests. Keep fail-closed behavior.
+
+## UI debt
+
+- Common materials, font, focus, loading and permission affordances are shared; domain density/forms/chart treatments still vary. This pass does not claim a complete visual redesign.
+- The desktop interaction sweep needs a stable full rerun; see the factual browser failures in the cohesion report. Pixel changes in a dynamic mode round trip are not a clean visual regression pass.
+- Mobile hides unsupported destination results instead of silently dropping task/action IDs; entity focus reaches the same graph. Deep task/Skill/tool forms remain Systems work.
+- Foreground updates are not background push. Native sensors, mobile audio and device controls need real hardware/HTTPS acceptance.
+
+## September 10 addendum — subordinate worker boundary
+
+**KEEP:** Existing agent runtime, mission orchestration, memory and one action/permission/approval/audit authority. **INCOMPLETE (live acceptance):** [Hermes AgentProvider integration](hermes-worker.md) adds owner-scoped durable delegated jobs in existing messages, remote Runs transport, development diagnostics, proposal review and explicit episodic outcome capture. The API/isolation contract is fail-closed; no live endpoint or key is configured and no remote test job has run. No replacement agent framework, hosted migration or production deployment. [Verification report](HERMES_TEST_REPORT.md).

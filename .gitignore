@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.data/
+*.tsbuildinfo
+coverage/
+
+.desktop-build/
+dist-desktop/
+
+.native/

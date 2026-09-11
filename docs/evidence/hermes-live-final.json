@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "provider": "hermes",
+  "storage": "isolated_local_owner",
+  "memoryEmbedding": "local_test_embedding_only",
+  "productionMemoryModified": false,
+  "sideEffects": "Independent remote execution-log review required",
+  "healthStatus": "ready",
+  "healthLatencyMs": 674,
+  "mandatoryApprovalBeforeDispatch": true,
+  "approvedActionReplayWithoutRedispatch": true,
+  "observedStatus": "WAITING_FOR_APPROVAL",
+  "resultReviewAndAudit": true,
+  "resultSummaryLength": 87,
+  "completedJobCount": 1,
+  "reviewedEpisodicMemoryIdempotent": true,
+  "actionCount": 10,
+  "outcomeCount": 10,
+  "localFixtureCleanup": true,
+  "submissionHttpAttempts": 1,
+  "totalLatencyMs": 4739
+}

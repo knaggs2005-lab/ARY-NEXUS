@@ -1,0 +1,176 @@
+{
+  "reviewed_at": "2026-09-06",
+  "kind": "reference-only",
+  "source_code_vendored": false,
+  "runtime_dependencies_added": [],
+  "references": [
+    {
+      "id": "mem0",
+      "local_source": "/Users/austin/Downloads/mem0-main",
+      "upstream": "https://github.com/mem0ai/mem0",
+      "package": "mem0ai",
+      "observed_version": "3.1.8",
+      "version_evidence": "mem0-ts/package.json",
+      "observed_root_license": "Apache-2.0",
+      "status": "reference-only",
+      "reviewed_files": [
+        {
+          "path": "mem0-ts/package.json",
+          "sha256": "02e8e3f907da3482687faf9ff0ee3fb41a010d198e9d58135e7f16bd7af74825"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "0bbcbe931c353293a2fafce08326181dfeea0e568c566afd4ce8337a70f5e219"
+        },
+        {
+          "path": "mem0/memory/main.py",
+          "sha256": "5b1b75e2f00aca7bd368a6e9cd5905145d60fd05a0e36d6b1ef3e2f1b4f28ca1"
+        },
+        {
+          "path": "mem0/configs/prompts.py",
+          "sha256": "10bc8a34b3b5f0ce24560a2a3190c9112b979a891b981f48393bbd168d915a5c"
+        },
+        {
+          "path": "mem0/vector_stores/pgvector.py",
+          "sha256": "4cbc53362155bc05156f2c0641871afdab9b047445d668b2730ea9c2fa8a280f"
+        }
+      ]
+    },
+    {
+      "id": "graphiti",
+      "local_source": "/Users/austin/Downloads/graphiti-main",
+      "upstream": "https://github.com/getzep/graphiti",
+      "package": "graphiti-core",
+      "observed_version": "0.24.1",
+      "version_evidence": "pyproject.toml",
+      "observed_root_license": "Apache-2.0",
+      "status": "reference-only",
+      "reviewed_files": [
+        {
+          "path": "pyproject.toml",
+          "sha256": "8ff293a0127ff647c1ce01ba0d7313a85a78d73c3d0b045fd5cac470a2c46ec4"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "2825300b20d7b951209835a4a331f29e24725a39d65168e4b831df53aa372650"
+        },
+        {
+          "path": "graphiti_core/edges.py",
+          "sha256": "259646a3a1b61d362ff9a684facf0fef221791d1da36a83950618f0d5e2764e2"
+        },
+        {
+          "path": "graphiti_core/search/search.py",
+          "sha256": "a527f22c90d102feb217df80e65e376edd06bed1e009e5506ca4395c1a830335"
+        },
+        {
+          "path": "graphiti_core/search/search_config_recipes.py",
+          "sha256": "e06aae4698478499695d084064ec926270b30566284f0c65263e3879339abd94"
+        },
+        {
+          "path": "graphiti_core/utils/maintenance/dedup_helpers.py",
+          "sha256": "07b93a2a407a4a28bc3d909634d4efb0d8b2e01353356a682de1a0acf2eae811"
+        }
+      ]
+    },
+    {
+      "id": "langgraph",
+      "local_source": "/Users/austin/Downloads/langgraph-main",
+      "upstream": "https://github.com/langchain-ai/langgraph",
+      "package": "langgraph",
+      "observed_version": "1.2.11",
+      "version_evidence": "libs/langgraph/pyproject.toml",
+      "observed_root_license": "MIT",
+      "status": "reference-only",
+      "reviewed_files": [
+        {
+          "path": "libs/langgraph/pyproject.toml",
+          "sha256": "d5e0706f1c3cba845757379ffcbf4bd54b34b9d69ccf6158555a40697903b019"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7"
+        },
+        {
+          "path": "libs/langgraph/langgraph/graph/state.py",
+          "sha256": "d8c8021a93a8fc895d62335a9482e50d51353343bf885901e6487611dcd0d212"
+        },
+        {
+          "path": "libs/langgraph/langgraph/types.py",
+          "sha256": "7204b467ed7e724ec16bbd2e3e7fac1c698742b12dda27cf2086f744128b1844"
+        },
+        {
+          "path": "libs/checkpoint-postgres/README.md",
+          "sha256": "5d078003f953bad67bf1fe24883b205ae048cb0cbdaf51afcdfe82258726f887"
+        }
+      ]
+    },
+    {
+      "id": "xyflow",
+      "local_source": "/Users/austin/Downloads/xyflow-main",
+      "upstream": "https://github.com/xyflow/xyflow",
+      "package": "@xyflow/react",
+      "observed_version": "12.11.6",
+      "version_evidence": "packages/react/package.json",
+      "observed_root_license": "MIT",
+      "status": "reference-only",
+      "reviewed_files": [
+        {
+          "path": "packages/react/package.json",
+          "sha256": "18f67a6ff120c77f0823e56f7e07f904bd7132b4e7295c35a973c276459d6ede"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "023119ac20fb1c8c9930abe0bcd196989a1960388529a96fc43cebf96f07c9ff"
+        },
+        {
+          "path": "packages/react/src/hooks/useReactFlow.ts",
+          "sha256": "954c1f47e21942952a43fda321b3afcf92f82d72cd557922533a244373be18f7"
+        },
+        {
+          "path": "packages/react/src/container/NodeRenderer/index.tsx",
+          "sha256": "345da0c2c545e44b00935f8d105f278839ac5c21b2bf5ac8d7bd0f4e9740836a"
+        },
+        {
+          "path": "packages/react/src/types/component-props.ts",
+          "sha256": "98923588781d65f9655b52adaac51e6008d740a622b909c1a8517a153849e020"
+        }
+      ]
+    },
+    {
+      "id": "livekit-agents",
+      "local_source": "/Users/austin/Downloads/livekit-agents-main",
+      "upstream": "https://github.com/livekit/agents",
+      "package": "livekit-agents",
+      "observed_version": "0.7.1",
+      "version_evidence": "livekit-agents/livekit/agents/version.py",
+      "observed_root_license": "Apache-2.0",
+      "status": "reference-only",
+      "reviewed_files": [
+        {
+          "path": "livekit-agents/livekit/agents/version.py",
+          "sha256": "24e058ae529cc5b4d3457914287d3ddb51ac995fa2ef5fca1dcce0d9c81088b7"
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "path": "livekit-agents/livekit/agents/stt/stt.py",
+          "sha256": "418618b3d0f352fcc5ba758c26fdda075fad09d5688ef10f66489103b72a9708"
+        },
+        {
+          "path": "livekit-agents/livekit/agents/tts/tts.py",
+          "sha256": "43ed16d8cc0c4eb91d7036db62770c9c7169389ec7f30780cbb038b1a0e1c1ae"
+        },
+        {
+          "path": "livekit-agents/livekit/agents/voice_assistant/assistant.py",
+          "sha256": "b9363ade15964c4fdddbb437d327abda30097860a3ef43bf8ef55b4cd01d31a8"
+        },
+        {
+          "path": "README.md",
+          "sha256": "47d5181d4974c3537b669f5dd4adf2642814328d019ce19d34946f548b59a5cd"
+        }
+      ]
+    }
+  ]
+}

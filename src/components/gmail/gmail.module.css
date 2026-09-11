@@ -1,0 +1,271 @@
+.mail {
+  isolation: isolate;
+  border: 1px solid #354953;
+  border-radius: 24px;
+  padding: 30px;
+  background:
+    radial-gradient(ellipse at 0 0, #293d48, transparent 60%), #101a23;
+  color: #e0e9ec;
+  min-height: 600px;
+}
+.mail h2 {
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 450;
+  letter-spacing: -0.04em;
+  margin: 14px 0;
+}
+.mail h3 {
+  font-size: 23px;
+  font-weight: 450;
+}
+.mail p {
+  color: #b9cbd3;
+  line-height: 1.65;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #a0bbc8;
+}
+.toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.mail button,
+.mail a {
+  background: #293e48;
+  border: 1px solid #536975;
+  color: #e4eef2;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+.mail button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.mail button:hover {
+  background: #3b515b;
+}
+.mail label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: #aec5cf;
+}
+.mail input,
+.mail textarea {
+  min-width: 0;
+  border: 1px solid #485e6b;
+  border-radius: 9px;
+  padding: 10px;
+  background: #162832;
+  color: #e6f0f3;
+  font: inherit;
+}
+.toolbar label {
+  flex: 1;
+  min-width: 230px;
+}
+.mail :focus-visible {
+  outline: 2px solid #a2cbd7;
+  outline-offset: 3px;
+}
+.steps {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.steps span {
+  font-size: 11px;
+  color: #90a6b3;
+  padding: 8px 0;
+  border-bottom: 1px solid #40515b;
+  transition:
+    color 0.3s,
+    border-color 0.3s;
+}
+.steps [aria-current] {
+  color: #e2f2f7;
+  border-color: #b1d6e3;
+}
+.steps [data-done="true"] {
+  color: #a4c3b6;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 1.5fr);
+  gap: 26px;
+}
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: start;
+}
+.rail button {
+  text-align: left;
+  line-height: 1.6;
+}
+.rail button[aria-pressed="true"] {
+  border-color: #acc6d0;
+  background: #334b56;
+}
+.rail small {
+  display: block;
+  margin-top: 10px;
+  font-size: 10px;
+  color: #a5c6d1;
+}
+.context {
+  min-width: 0;
+  background: #17242bb0;
+  border: 1px solid #354a56;
+  border-radius: 18px;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.chips span {
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid #526a77;
+  border-radius: 20px;
+}
+.message {
+  padding: 18px 0;
+  border-bottom: 1px solid #3d505b;
+}
+.message small {
+  display: block;
+  color: #95aeba;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.message p {
+  white-space: pre-wrap;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 13px;
+}
+.analysis,
+.draft,
+.receipt {
+  animation: reveal 0.3s ease-out;
+}
+.analysis {
+  padding: 20px 0;
+}
+.fine {
+  font-size: 11px;
+  color: #94afbc !important;
+}
+.candidate {
+  border: 1px solid #4a626d;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 14px 0;
+}
+.candidate strong,
+.candidate small {
+  font-size: 11px;
+}
+.candidate small {
+  display: block;
+  color: #a3bcc7;
+  margin: 8px 0;
+}
+.candidate blockquote {
+  margin: 12px 0;
+  padding-left: 12px;
+  border-left: 2px solid #93b1bd;
+  color: #dbe8ed;
+  font-size: 13px;
+}
+.note {
+  padding: 14px;
+  border-left: 2px solid #c6b490;
+  background: #80704718;
+}
+.instruction {
+  margin: 22px 0 12px;
+}
+.draft {
+  margin-top: 24px;
+}
+.draft fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.draft legend {
+  padding-bottom: 16px;
+  color: #a9c6d2;
+  font-size: 12px;
+}
+.draft pre {
+  font: inherit;
+  font-size: 13px;
+  color: #c8dce5;
+}
+.receipt {
+  margin-top: 20px;
+  padding: 18px;
+  background: #7da39115;
+  border: 1px solid #668c7d;
+  border-radius: 12px;
+}
+.receipt strong {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+.pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 850px) {
+  .mail {
+    padding: 18px;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .rail {
+    max-height: 230px;
+    overflow: auto;
+  }
+  .context {
+    padding: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mail * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

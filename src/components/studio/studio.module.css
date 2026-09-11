@@ -1,0 +1,184 @@
+.studio {
+  position: relative;
+  isolation: isolate;
+}
+.devices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-block: 20px;
+}
+.devices article,
+.plan,
+.report {
+  border: 1px solid #b7caff26;
+  border-radius: 18px;
+  padding: 20px;
+  background: linear-gradient(135deg, #29324b88, #111727aa);
+}
+.devices h3 {
+  margin-block: 10px;
+}
+.devices dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.plan,
+.report {
+  margin-block: 22px;
+  animation: reveal 220ms ease-out;
+}
+.plan li {
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1px solid #ffffff15;
+}
+.plan li small {
+  flex-basis: 100%;
+}
+.report li {
+  padding-block: 10px;
+  overflow-wrap: anywhere;
+}
+.report li[data-status="uncertain"],
+.report li[data-status="failed"] {
+  color: #f6c398;
+}
+.foot {
+  opacity: 0.75;
+  max-width: 80ch;
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan,
+  .report {
+    animation: none;
+  }
+}
+
+.space {
+  margin-block: 24px;
+}
+.locations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.locations button[aria-pressed="true"] {
+  border-color: #c0b4ef99;
+  background: #a694de20;
+}
+.floor {
+  min-height: 420px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid #c3b4e526;
+  background:
+    radial-gradient(ellipse at 50% 75%, #8070a61a, transparent 65%),
+    linear-gradient(165deg, #192131, #10131e);
+}
+.roomLabel {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  opacity: 0.65;
+}
+.deviceNode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  max-width: 20%;
+  padding: 12px 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 14px;
+  transition:
+    background 200ms ease,
+    border-color 200ms ease;
+}
+.deviceNode strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.deviceNode small {
+  font-size: 10px;
+}
+.deviceNode[aria-pressed="true"] {
+  background: #afa2d41a;
+  border-color: #c7bfe77a;
+}
+.stateDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #858695;
+}
+.deviceNode[data-status="available"] .stateDot {
+  background: #b3cfc6;
+  box-shadow: 0 0 20px #9abcb752;
+}
+.deviceNode[data-status="unavailable"] .stateDot {
+  background: #c6a889;
+}
+.deviceNode[data-status="stale"] .stateDot {
+  background: transparent;
+  border: 1px solid #9193a2;
+}
+.emptyRoom {
+  position: absolute;
+  top: 45%;
+  width: 100%;
+  text-align: center;
+  opacity: 0.65;
+}
+.deviceDetail {
+  padding: 20px;
+  border-left: 1px solid #c7bfe75a;
+  animation: reveal 220ms ease-out;
+}
+.deviceDetail dl div {
+  display: flex;
+  gap: 16px;
+}
+.readiness {
+  border-left: 2px solid #bba98e;
+  padding-left: 16px;
+}
+.readiness[data-status="ready"] {
+  border-color: #acc8bf;
+}
+@media (max-width: 650px) {
+  .floor {
+    min-height: 540px;
+  }
+  .deviceNode small {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deviceNode {
+    transition: none;
+  }
+  .deviceDetail {
+    animation: none;
+  }
+}

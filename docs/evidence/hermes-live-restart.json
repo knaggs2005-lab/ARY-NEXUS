@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-09-10",
+  "transport": "real VPS loopback after idle container restart",
+  "success": true,
+  "sameKeySameRun": true,
+  "canonicalGetResultPreserved": true,
+  "status": "completed",
+  "summary": "Delegated diagnostic job received. No modifications were made.",
+  "healthLatencyMs": 2,
+  "submissionLatencyMs": 1,
+  "totalLatencyMs": 223,
+  "authInventoryRouteChecksPassed": true,
+  "harnessCorrection": "Always GET the run after an admission or replay receipt; POST receipt deliberately omits output.",
+  "forcedInFlightRestartTested": false
+}
