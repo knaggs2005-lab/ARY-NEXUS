@@ -65,6 +65,11 @@ export class TwilioPhoneProvider implements PhoneProvider {
           const value = raw.length <= 10000 ? JSON.parse(raw) : null;
           if (Number.isSafeInteger(value?.code) && value.code > 0)
             code = `; Twilio code ${value.code}`;
+          if (value?.code === 20003 && /compliance profile|KYC/i.test(String(value?.message ?? "")))
+            throw new AppError(
+              "Twilio requires an approved primary compliance profile (KYC) before this US number can place calls. Complete Trust Hub verification, then retry.",
+              503,
+            );
         } catch { /* Untrusted error content is never displayed. */ }
         throw new AppError(
           `Telephony provider request failed (HTTP ${response.status}${code}); check provider console. No automatic redial.`,
