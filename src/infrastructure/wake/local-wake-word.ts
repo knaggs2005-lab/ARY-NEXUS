@@ -118,6 +118,14 @@ export class LocalWakeWordProvider implements WakeWordProvider {
       started = 0,
       last = -Infinity;
     let serial = Promise.resolve();
+    const ring = new Float32Array(config.verificationAudio ? 48000 : 0);
+    let ringAt = 0,
+      ringCount = 0;
+    const clearRing = () => {
+      ring.fill(0);
+      ringAt = 0;
+      ringCount = 0;
+    };
     const id = crypto.randomUUID();
     const release = async () => {
       epoch++;
@@ -127,6 +135,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
       await s?.stop();
     };
     const fail = () => {
+      clearRing();
       state = "FAILED";
       void release();
       listeners.forEach((h) =>
@@ -142,6 +151,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
         return;
       const generation = ++epoch;
       started = this.now();
+      clearRing();
       engine.reset();
       try {
         const s = await this.capture.start(
@@ -168,7 +178,16 @@ export class LocalWakeWordProvider implements WakeWordProvider {
               floats = new Float32Array(480);
             for (let i = 0; i < 480; i++)
               floats[i] = view.getInt16(i * 2, true) / 32768;
-            const pcm = float32ToPcm16(resampleMono(floats, 24000, 16000));
+            const local = resampleMono(floats, 24000, 16000);
+            if (ring.length)
+              for (const value of local) {
+                ring[ringAt] = value;
+                ringAt = (ringAt + 1) % ring.length;
+                ringCount = Math.min(ringCount + 1, ring.length);
+              }
+            const pcm = float32ToPcm16(local);
+            floats.fill(0);
+            local.fill(0);
             const joined = new Int16Array(pending.length + pcm.length);
             joined.set(pending);
             joined.set(pcm, pending.length);
@@ -256,6 +275,14 @@ export class LocalWakeWordProvider implements WakeWordProvider {
       get state() {
         return state;
       },
+      takeVerificationAudio: () => {
+        const sample = new Float32Array(ringCount);
+        const from = (ringAt - ringCount + ring.length) % ring.length;
+        for (let i = 0; i < ringCount; i++)
+          sample[i] = ring[(from + i) % ring.length];
+        clearRing();
+        return sample;
+      },
       pause: () => {
         state = "PAUSED";
         return (serial = serial.then(release));
@@ -264,6 +291,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
       stop: () => {
         if (stopped) return stopped;
         state = "STOPPED";
+        clearRing();
         return (stopped = serial =
           serial.then(async () => {
             await release();

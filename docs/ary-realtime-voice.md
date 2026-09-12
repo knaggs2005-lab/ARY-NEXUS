@@ -53,3 +53,45 @@ The authenticated start endpoint accepts an opt-in Brain mode, used by START ARY
 The bridge consumes the existing AsyncGenerator in order, waits for its final canonical response/complete, then sends only canonical response text to an out-of-band Realtime audio response (`conversation:none`, empty default input context). It deliberately waits rather than issuing overlapping sentence generations; this adds full-Brain/extraction latency. Responses beyond 4,000 characters fail visibly. Speech rendering is generative and exact spoken wording still needs acceptance; canonical text remains authoritative. Realtime has no exposed tools or ToolRegistry and cannot approve actions. A Brain approval message is spoken as supplied; only the established approval UI/path can execute.
 
 Barge-in aborts active Brain reasoning using its AbortSignal; completed effects remain recorded, never implicitly undone. Provider failure/stream closure cleans up the bridge. Response-pending cancellation waits for the provider response ID and cancels it once, rejecting late output. Brain failures/timeouts do not fall back to independent Realtime reasoning. Classic STT → Brain → TTS tests remain passing.
+
+## Stage 2K — coordinated wake/session/sleep lifecycle
+
+The existing VoiceActivationService now sequences local wake pause/release,
+optional OwnerVoiceGate verification, and a browser implementation of its existing
+RealtimeVoiceActivator port. RelayVoiceActivator uses the existing authenticated
+microphone relay; it does not create a second OpenAI connection. The standalone
+OpenAIRealtimeVoiceActivator remains available and now closes late connecting
+sessions and failed active sessions exactly once.
+
+A configured local wake session may retain at most three seconds of local 16 kHz
+PCM solely for opt-in wake verification. This is never an event payload, recording,
+network upload, or memory. Taking the sample clears the ring; verification zeroes
+the sample. Disabled verification retains no ring. Templates still require explicit
+owner enrollment; verification never authorizes actions.
+
+Only exact end utterances (`Ary, stop`, `go to sleep`, `that's all`, with optional
+terminal punctuation) end the active session without a Brain call. The configurable
+`ARY_REALTIME_INACTIVITY_MS` defaults to 90 seconds, bounded to 15–300 seconds.
+Speech start, final transcripts, and generated assistant audio reset inactivity;
+background microphone frames do not. The existing five-minute hard acceptance TTL
+still limits every relay session. Closed streams include bounded failure codes so
+provider failure cannot masquerade as a successful end. Clean remote endings discard
+unsent closing audio, release capture, flush playback, close the provider, and resume
+local wake; failures surface a degraded state. Runtime/page/offline shutdown stops
+wake too. No automatic cloud fallback or reconnect is added.
+
+The dedicated output context is retained across wake cycles after an explicit Start,
+and closed on runtime shutdown. `/mic-test` now exposes playback counters and a gated
+Hey Ary setup/session harness. It cannot recognize Hey Ary with the missing model
+and inference package. Classic Chat voice remains an explicit separate entry using
+the same Brain, not a silent replacement for local wake.
+
+Synthetic acceptance covers a complete wake/owner/Brain/approval-text/audio/barge-in/
+end/resume cycle, a second wake, verification rejection, inactivity, provider/mic/
+playback/Brain failures, late provider connection after stop, and shutdown during
+verification. Physical acceptance remains pending; no device was activated overnight.
+
+Stage 2K validation: 92 focused tests and 1,668 full tests / 104 files passed;
+TypeScript and isolated production build passed. Formatting reports only the four
+unchanged pre-existing warnings in calls-panel, permissions, twilio-phone and
+phone-service. `git diff --check` passed. No physical devices used.

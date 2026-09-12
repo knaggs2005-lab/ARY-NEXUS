@@ -28,7 +28,15 @@ export const relayOutput = z.discriminatedUnion("type", [
       cancel_external_effect: z.literal(false),
     })
     .strict(),
-  z.object({ type: z.literal("closed") }).strict(),
+  z
+    .object({
+      type: z.literal("closed"),
+      failure_code: z
+        .string()
+        .regex(/^[A-Za-z0-9_.-]{1,120}$/)
+        .optional(),
+    })
+    .strict(),
 ]);
 export type RelayOutput = z.infer<typeof relayOutput>;
 export function outputFrame(

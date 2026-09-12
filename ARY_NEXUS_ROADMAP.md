@@ -402,3 +402,14 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 - Stage 2H: local wake provider boundary and asset/setup checks implemented; production recognition remains BLOCKED on licensed custom Hey Ary model and inference packaging. Wake remains disabled. Synthetic lifecycle tests only; no owner hardware used. Independent later voice stages may continue under the overnight prompt.
 - Stage 2I: local owner-verification contracts, encrypted IndexedDB templates and explicit enrollment UI implemented; synthetic tests passed. SPEAKER_MODEL_SETUP_REQUIRED / OWNER_VOICE_ENROLLMENT_REQUIRED. No owner voiceprint collected; approvals unchanged.
 - Stage 2J: opt-in final-transcript → existing AryBrainService → canonical-text Realtime speech implemented. Automatic provider answers disabled; no direct tool authority. Real local Brain memory/message integration and fake-provider cancellation tests passed; live handshake/REAL_RELAY passed. Physical full workflow remains pending.
+
+### Overnight voice Stage 2K checkpoint
+
+- IMPLEMENTED / SYNTHETICALLY VERIFIED: existing activation service coordinates wake
+  release, optional local owner gate, authenticated relay capture, canonical Brain,
+  playback, barge-in, exact end commands, inactivity and return to local sleep.
+- Developer harness: `/mic-test`, including bounded playback metrics and gated Hey Ary
+  setup. No automatic microphone start or owner enrollment.
+- BLOCKED: real Hey Ary custom model/inference packaging; speaker model/calibration.
+  OWNER_ACCEPTANCE_PENDING: audible playback, barge-in/echo, physical wake and enrollment.
+- This does not mark the complete Hey Ary product DONE. Classic voice is preserved.

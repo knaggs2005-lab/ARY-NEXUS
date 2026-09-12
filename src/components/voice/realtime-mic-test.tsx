@@ -15,6 +15,9 @@ import {
 
 export function RealtimeMicTest() {
   const client = useRef<RealtimeMicRelayClient | null>(null);
+  const playbackRef = useRef<RealtimePlayback | null>(null);
+  const [playbackHealth, setPlaybackHealth] =
+    useState<ReturnType<RealtimePlayback["snapshot"]>>();
   const [health, setHealth] = useState<MicRelayHealth | null>(null);
   const [conversation, setConversation] = useState("");
   const [ids, setIds] = useState<string[]>([]);
@@ -23,6 +26,8 @@ export function RealtimeMicTest() {
   useEffect(() => {
     const refresh = setInterval(() => {
       if (client.current) setHealth(client.current.snapshot());
+      if (playbackRef.current)
+        setPlaybackHealth(playbackRef.current.snapshot());
     }, 100);
     const unload = () => client.current?.unload();
     const offline = () => client.current?.offline();
@@ -91,9 +96,16 @@ export function RealtimeMicTest() {
         return;
       }
     }
+    playbackRef.current = playback ?? null;
     const output = playback
-      ? new RealtimeOutputClient(api, playback, (code) =>
-          client.current?.fail(code),
+      ? new RealtimeOutputClient(
+          api,
+          playback,
+          (code) => client.current?.fail(code),
+          (event) => {
+            if (event.type === "closed")
+              void client.current?.remoteEnd(event.failure_code);
+          },
         )
       : undefined;
     const next = new RealtimeMicRelayClient(
@@ -200,6 +212,11 @@ export function RealtimeMicTest() {
         Start only when present. Stop ends both paths.
       </p>
       <p role="status">Test source: {source}</p>
+      {playbackHealth && (
+        <pre aria-label="Bounded playback metrics">
+          {JSON.stringify(playbackHealth, null, 2)}
+        </pre>
+      )}
       {health && (
         <dl
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}

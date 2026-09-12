@@ -1,4 +1,5 @@
 "use client";
+import { HeyAryTest } from "./hey-ary-test";
 import { OwnerVoiceEnrollment } from "./owner-voice-enrollment";
 import { useState } from "react";
 import { loadWakeAssets } from "../../infrastructure/wake/local-wake-word";
@@ -37,6 +38,7 @@ export function LocalVoiceSetup({ wakeEnabled }: { wakeEnabled: boolean }) {
         Start local wake test — model/runtime setup required
       </button>
       <OwnerVoiceEnrollment />
+      <HeyAryTest />
     </section>
   );
 }

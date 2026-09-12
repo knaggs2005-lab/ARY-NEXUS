@@ -7,6 +7,7 @@ import type {
 export class RealtimeBrainBridge {
   private seen = new Set<string>();
   private pending = 0;
+  private generation = 0;
   private tail = Promise.resolve();
   private active?: AbortController;
   private closed = false;
@@ -22,8 +23,10 @@ export class RealtimeBrainBridge {
     this.off = session.onEvent((event) => {
       if (event.type === "transcript_final")
         this.accept(event.turn_id, event.text);
-      if (event.type === "speech_start" || event.type === "interruption")
+      if (event.type === "speech_start" || event.type === "interruption") {
+        this.generation++;
         this.active?.abort();
+      }
       if (
         event.type === "failure" ||
         (event.type === "state" &&
@@ -71,9 +74,12 @@ export class RealtimeBrainBridge {
       return;
     }
     this.active?.abort();
+    const generation = ++this.generation;
     this.pending++;
     this.tail = this.tail
-      .then(() => this.run(text))
+      .then(() => {
+        if (generation === this.generation) return this.run(text);
+      })
       .catch(() => this.fail("BRAIN_VOICE_FAILED"))
       .finally(() => {
         this.pending--;

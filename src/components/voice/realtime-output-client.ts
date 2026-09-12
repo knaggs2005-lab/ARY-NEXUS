@@ -17,6 +17,7 @@ export class RealtimeOutputClient {
     private readonly playback: RealtimePlayback,
     private readonly failure: (code: string) => void,
     private readonly event: (event: RelayOutput) => void = () => {},
+    private readonly retainPlaybackContext = false,
   ) {}
   async open(id: string) {
     const response = await this.request(`realtime/session/${id}/output`, {
@@ -72,18 +73,22 @@ export class RealtimeOutputClient {
         } else if (event.type === "interrupted") this.playback.stop();
         else if (event.type === "closed") {
           this.ending = true;
-          await this.playback.close();
+          await this.endPlayback();
         }
         this.event(event);
       }
       if (pending.length > 66000) throw new Error("OUTPUT_TOO_LARGE");
     }
   }
+  private async endPlayback() {
+    if (this.retainPlaybackContext) this.playback.stop();
+    else await this.playback.close();
+  }
   async close() {
     this.ending = true;
     this.abort.abort();
     await this.reader?.cancel().catch(() => {});
     await this.task;
-    await this.playback.close();
+    await this.endPlayback();
   }
 }

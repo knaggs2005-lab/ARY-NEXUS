@@ -85,9 +85,12 @@ export class RealtimeOutputStream {
     this.controller = undefined;
     this.disconnect();
   }
-  close() {
+  close(failureCode?: string) {
     if (this.terminal) return;
-    this.send({ type: "closed" });
+    this.send({
+      type: "closed",
+      ...(failureCode ? { failure_code: failureCode } : {}),
+    });
     this.terminal = true;
     this.detachAbort?.();
     try {

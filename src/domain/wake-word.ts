@@ -15,6 +15,7 @@ export interface WakeWordConfig {
   readonly phrases: readonly WakePhrase[];
   readonly cooldownMs?: number;
   readonly enabled?: boolean;
+  readonly verificationAudio?: boolean; // opt-in bounded local sample, never an event payload
 }
 export interface WakeWordDetection {
   readonly wakePhrase: WakePhrase;
@@ -39,6 +40,7 @@ export interface WakeWordHealth {
 export interface WakeWordSession {
   readonly id: string;
   readonly state: WakeWordState;
+  takeVerificationAudio?(): Float32Array;
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;

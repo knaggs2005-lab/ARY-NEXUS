@@ -69,6 +69,7 @@ export class RealtimeMicRelayClient {
   private stopping?: Promise<void>;
   private accepting = false;
   private stopRequested = false;
+  private remoteEnded = false;
   private used = false;
   private startedAt = 0;
   private pollTimer?: ReturnType<typeof setTimeout>;
@@ -187,7 +188,13 @@ export class RealtimeMicRelayClient {
   }
 
   private pump(flush = false) {
-    if (this.sending || !this.relayId || this.health.failure_code) return;
+    if (
+      this.sending ||
+      !this.relayId ||
+      this.health.failure_code ||
+      this.remoteEnded
+    )
+      return;
     if (!this.queue.length || (!flush && this.queue.length < BATCH_FRAMES))
       return;
     const frames = this.queue.splice(0, BATCH_FRAMES);
@@ -218,7 +225,8 @@ export class RealtimeMicRelayClient {
         this.health.batches_sent++;
       })
       .catch((error) => {
-        this.fail(this.safeCode(error, "AUDIO_POST_FAILED"));
+        if (!this.remoteEnded)
+          this.fail(this.safeCode(error, "AUDIO_POST_FAILED"));
       })
       .finally(() => {
         this.inFlightFrames = 0;
@@ -245,6 +253,10 @@ export class RealtimeMicRelayClient {
         : status.failure_code
           ? "PROVIDER_FAILURE"
           : null;
+    if (status.relay_state === "CLOSED" && !status.failure_code) {
+      void this.remoteEnd();
+      return;
+    }
     if (
       status.failure_code ||
       status.realtime_state === "FAILED" ||
@@ -262,6 +274,18 @@ export class RealtimeMicRelayClient {
     }
     if (!this.stopRequested)
       this.pollTimer = setTimeout(() => void this.poll(), 400);
+  }
+
+  /** Server end/timeout has already closed the provider. Discard unsent closing audio. */
+  remoteEnd(failureCode?: string) {
+    this.remoteEnded = true;
+    this.health.relay_state = "CLOSED";
+    this.health.realtime_state = failureCode ? "FAILED" : "CLOSED";
+    if (failureCode)
+      this.health.failure_code ??= /^[A-Za-z0-9_.-]{1,120}$/.test(failureCode)
+        ? failureCode
+        : "PROVIDER_FAILURE";
+    return this.stop();
   }
 
   fail(code: string) {
@@ -296,12 +320,16 @@ export class RealtimeMicRelayClient {
       this.health.failure_code ??= "MICROPHONE_STOP_FAILED";
     }
     await this.sending;
-    if (!this.health.failure_code) {
-      while (this.queue.length && !this.health.failure_code) {
+    if (!this.health.failure_code && !this.remoteEnded) {
+      while (
+        this.queue.length &&
+        !this.health.failure_code &&
+        !this.remoteEnded
+      ) {
         this.pump(true);
         await this.sending;
       }
-      if (this.relayId) {
+      if (this.relayId && !this.remoteEnded) {
         try {
           await this.refreshStatus();
         } catch (error) {
@@ -313,8 +341,8 @@ export class RealtimeMicRelayClient {
       }
     }
     this.queue = []; // On failure, unsent frames are discarded only with a visible failed test.
-    let closed = !this.relayId;
-    if (this.relayId) {
+    let closed = !this.relayId || this.remoteEnded;
+    if (this.relayId && !this.remoteEnded) {
       try {
         await this.json(
           `realtime/session/${this.relayId}/stop`,

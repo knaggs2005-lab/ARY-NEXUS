@@ -20,6 +20,8 @@ export class WakeWordService {
   private lastDetection = 0;
   private unsubscribe: (() => void) | null = null;
   private playback = false;
+  private starting?: Promise<WakeWordHealth>;
+  private epoch = 0;
   private listeners = new Set<(event: WakeWordEvent) => void>();
   onEvent(handler: (event: WakeWordEvent) => void) {
     this.listeners.add(handler);
@@ -34,12 +36,22 @@ export class WakeWordService {
   health(): WakeWordHealth {
     return this.healthState;
   }
+  takeVerificationAudio() {
+    return this.session?.takeVerificationAudio?.() ?? new Float32Array(0);
+  }
   setPlaybackActive(active: boolean) {
     this.playback = active;
   }
-  async start(config: WakeWordConfig): Promise<WakeWordHealth> {
+  start(config: WakeWordConfig): Promise<WakeWordHealth> {
+    if (this.starting) return this.starting;
+    return (this.starting = this.begin(config).finally(() => {
+      this.starting = undefined;
+    }));
+  }
+  private async begin(config: WakeWordConfig): Promise<WakeWordHealth> {
     if (config.enabled === false) return this.healthState;
     if (this.session) return this.healthState;
+    const epoch = ++this.epoch;
     this.healthState = {
       state: "STARTING",
       providerId: this.provider.id,
@@ -47,7 +59,16 @@ export class WakeWordService {
       microphoneActive: false,
     };
     try {
-      this.session = await this.provider.start(config);
+      const session = await this.provider.start(config);
+      if (epoch !== this.epoch) {
+        await session.stop();
+        return this.healthState;
+      }
+      if (session.state !== "LISTENING") {
+        await session.stop();
+        throw new Error("WAKE_START_FAILED");
+      }
+      this.session = session;
       this.healthState = {
         state: "LISTENING",
         providerId: this.provider.id,
@@ -59,6 +80,7 @@ export class WakeWordService {
       });
       await this.emit("wake.listener.started", {});
     } catch (error) {
+      if (epoch !== this.epoch) return this.healthState;
       this.healthState = {
         state: "FAILED",
         providerId: this.provider.id,
@@ -85,7 +107,10 @@ export class WakeWordService {
   }
   async resume() {
     if (!this.session) return;
-    await this.session.resume();
+    const session = this.session;
+    await session.resume();
+    if (this.session !== session) return;
+    if (session.state !== "LISTENING") throw new Error("WAKE_RESUME_FAILED");
     this.healthState = {
       ...this.healthState,
       state: "LISTENING",
@@ -94,7 +119,16 @@ export class WakeWordService {
     await this.emit("wake.listener.resumed", {});
   }
   async stop() {
-    if (!this.session) return;
+    ++this.epoch;
+    await this.starting;
+    if (!this.session) {
+      this.healthState = {
+        ...this.healthState,
+        state: "STOPPED",
+        microphoneActive: false,
+      };
+      return;
+    }
     this.unsubscribe?.();
     this.unsubscribe = null;
     const s = this.session;

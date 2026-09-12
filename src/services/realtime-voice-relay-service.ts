@@ -62,6 +62,7 @@ type RelayEntry = {
   output: RealtimeOutputStream;
   speechTurns: Set<string>;
   brain?: RealtimeBrainBridge;
+  inactivity_timer?: ReturnType<typeof setTimeout>;
   close_promise: Promise<void> | null;
 };
 
@@ -81,13 +82,21 @@ export class RealtimeVoiceRelayService {
   >();
   private readonly ttlMs: number;
   private readonly now: Clock;
+  private readonly inactivityMs: number;
 
   constructor(
     private readonly provider: RealtimeVoiceSessionProvider,
-    options: { ttlMs?: number; now?: Clock } = {},
+    options: { ttlMs?: number; now?: Clock; inactivityMs?: number } = {},
   ) {
     this.ttlMs = options.ttlMs ?? DEFAULT_RELAY_TTL_MS;
     this.now = options.now ?? (() => new Date());
+    this.inactivityMs = options.inactivityMs ?? 90000;
+    if (
+      !Number.isInteger(this.inactivityMs) ||
+      this.inactivityMs < 15000 ||
+      this.inactivityMs > 300000
+    )
+      throw new Error("Invalid voice inactivity timeout");
     if (!Number.isInteger(this.ttlMs) || this.ttlMs < 1000)
       throw new Error("Realtime relay TTL must be at least one second");
   }
@@ -150,6 +159,7 @@ export class RealtimeVoiceRelayService {
       this.entries.set(relayId, entry);
       this.activeByUser.set(userId, relayId);
       if (brain) {
+        this.resetInactivity(entry);
         try {
           entry.brain = new RealtimeBrainBridge(
             session,
@@ -278,11 +288,19 @@ export class RealtimeVoiceRelayService {
     if (entry.finalized) return;
     entry.output.publish(event);
     if (entry.finalized) return;
+    if (
+      entry.brain &&
+      ["speech_start", "transcript_final", "assistant_audio_delta"].includes(
+        event.type,
+      )
+    )
+      this.resetInactivity(entry);
     entry.status.last_event_at = this.now().toISOString();
     entry.status.last_event_type = event.type;
     if (event.type === "state") {
       entry.status.realtime_state = event.state;
       if (event.state === "CLOSED" || event.state === "FAILED") {
+        entry.status.failure_code ??= "PROVIDER_SESSION_ENDED";
         this.detach(entry);
         void this.closeEntry(entry).catch(() => {});
       }
@@ -327,6 +345,14 @@ export class RealtimeVoiceRelayService {
       entry.status.assistant_audio_events += 1;
   }
 
+  private resetInactivity(entry: RelayEntry) {
+    clearTimeout(entry.inactivity_timer);
+    entry.inactivity_timer = setTimeout(() => {
+      void this.stop(entry.user_id, entry.relay_id).catch(() => {});
+    }, this.inactivityMs);
+    (entry.inactivity_timer as unknown as { unref?: () => void }).unref?.();
+  }
+
   private scheduleExpiry(relayId: string) {
     const timer = setTimeout(() => {
       const entry = this.entries.get(relayId);
@@ -356,7 +382,8 @@ export class RealtimeVoiceRelayService {
     if (entry.finalized) return;
     entry.finalized = true;
     entry.brain?.close();
-    entry.output.close();
+    entry.output.close(entry.status.failure_code ?? undefined);
+    clearTimeout(entry.inactivity_timer);
     clearTimeout(entry.expiry_timer);
     entry.unsubscribe();
     this.entries.delete(entry.relay_id);
@@ -392,7 +419,9 @@ export function realtimeVoiceRelayFor(
   const managers = (globalState.aryRealtimeRelayManagers ??= new Map());
   let manager = managers.get(userId);
   if (!manager) {
-    manager = new RealtimeVoiceRelayService(provider);
+    manager = new RealtimeVoiceRelayService(provider, {
+      inactivityMs: Number(process.env.ARY_REALTIME_INACTIVITY_MS || 90000),
+    });
     managers.set(userId, manager);
   }
   return manager;

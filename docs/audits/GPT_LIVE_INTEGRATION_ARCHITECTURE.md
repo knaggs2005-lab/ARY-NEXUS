@@ -210,3 +210,13 @@ Added optional OwnerVoiceGate, local-only SpeakerVerificationProvider, owner-sco
 ## Overnight Stage 2J — canonical Brain authority
 
 Enabled exact final input transcription and disabled automatic Realtime responses. Existing authenticated relay can delegate final voice turns once to the existing Brain/conversation and render its final text through the original Realtime session. No exposed tools, secondary memory, implicit approvals or independent model reasoning. Synthetic tests exercise cancellation, approval text, real local Brain message/memory behavior and protocol fields; updated live handshake and synthetic relay passed. Physical complete voice workflow remains pending.
+
+### Overnight Stage 2K — existing lifecycle composition
+
+Extended VoiceActivationService with optional local owner verification and cancellation
+fences. Added browser relay implementation of its existing activator port and a
+composition factory; the server relay still owns one provider connection and canonical
+Brain. Added bounded inactivity/end cleanup, truthful output close errors, retained
+unlocked playback across wake cycles, and developer harness metadata. Synthetic full
+lifecycle and failure/recovery tests pass. Wake model/runtime and physical owner gates
+remain incomplete; no always-on cloud capture or extra tool authority was introduced.
