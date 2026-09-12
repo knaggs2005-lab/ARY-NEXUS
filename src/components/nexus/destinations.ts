@@ -54,7 +54,7 @@ export const destinations = [
     id: "TOOLS",
     tab: "Tools",
     detail: "Registered tools and connections",
-    sections: ["Tools", "Computer & Browser", "Studio", "Calls"],
+    sections: ["Tools", "Connections", "Computer & Browser", "Studio", "Calls"],
   },
   {
     id: "AUTOMATIONS",

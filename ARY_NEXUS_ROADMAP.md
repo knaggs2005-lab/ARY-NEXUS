@@ -384,3 +384,7 @@ No critical defect was established by this bounded audit; that is not a security
 Ary Nexus should become a persistent intelligence operating system that can remember, reason, visualize knowledge, understand projects/people/money/goals, take permissioned actions, coordinate agents, operate through voice and spatial interaction, measure its own value, and connect to Clevaryn, Wag Trails, finance and future products.
 
 Today it has substantial tested intelligence, internal-action and spatial foundations; advisory coordination and source-based financial visibility already exist. Live speech acceptance, Google connections, broader operational readiness and physical interaction quality remain explicit work. Recovery schema parity and isolated memory/Economics acceptance are verified. Seed company/project entities are not integrations, advisory roles are not autonomous workers, and financial visibility is not financial execution.
+
+## Bounded implementation note — Connections Control Center V1 (2026-09-11)
+
+Implemented a read-only owner-facing Connections overview derived from the existing ToolDiscoveryService and adapter evidence. It aggregates connection families conservatively, labels configured versus live evidence, preserves existing domain screens, and does not perform automatic provider tests or change integration state. Verification: typecheck passed; full test and production build run after implementation.

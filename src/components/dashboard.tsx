@@ -85,6 +85,9 @@ import nexusStyles from "./nexus/nexus.module.css";
 const ControlPanel = dynamic(() =>
   import("./control/control-panel").then((m) => m.ControlPanel),
 );
+const ConnectionsView = dynamic(() =>
+  import("./connections-view").then((m) => m.ConnectionsView),
+);
 const ToolsView = dynamic(() =>
   import("./tools/tools-view").then((m) => m.ToolsView),
 );
@@ -140,6 +143,7 @@ import type { EntityAlias, ExtractionJob } from "@/domain/models";
 type Tab =
   | "Skills"
   | "Tools"
+  | "Connections"
   | "Computer & Browser"
   | "Automations"
   | "Calls"
@@ -203,6 +207,7 @@ const titles: Record<Tab, [string, string]> = {
     "Controlled digital presence.",
     "Inspect, review and execute through Ary permissions.",
   ],
+  Connections: ["Connections", "What Ary can use right now."],
   Tools: [
     "Connected by intent.",
     "Inspect capabilities and review an action before execution.",
@@ -1018,6 +1023,9 @@ export function Dashboard({
           {tab === "Perception" && <PerceptionPanel />}
           {tab === "Settings" && <PermissionsPanel />}
           {tab === "Computer & Browser" && <ControlPanel />}
+          {tab === "Connections" && (
+            <ConnectionsView onOpen={(name) => setTab(name as Tab)} />
+          )}
           {tab === "Tools" && (
             <ToolsView
               onSelect={(tool) => navigateCommand({ tab: "Approvals", tool })}
