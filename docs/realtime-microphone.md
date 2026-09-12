@@ -37,3 +37,17 @@ The normal development/native Node process retains `WS_NO_BUFFER_UTIL=1`.
 `/mic-test` is development-only; an isolated production HTTP check returned 404.
 Classic Chat voice is unchanged. For morning playback/barge-in/memory tests and the
 remaining wake/model/enrollment gates, follow [the acceptance package](ary-realtime-voice.md#morning-owner-acceptance).
+
+## September 12 HTTP throughput correction
+
+The later owner playback attempt failed with `BACKPRESSURE_LIMIT` after 31 captured /
+15 forwarded frames and a 339 ms audio POST. The relay follow-up path has now been
+changed to use a short-lived capability issued by the normal authenticated start,
+avoiding per-batch full Nexus context construction. Limits remain 15 frames per batch
+and 30 frames total buffered. See [measured correction and security boundaries](ary-realtime-voice.md#realtime-http-hot-path-correction--september-12-2026).
+
+The new **BENCHMARK HTTP — SYNTHETIC ONLY** button at `/mic-test` passed 30 real HTTP
+batches with concurrent polling/output: mean 4.6 ms, p50 4.3 ms, p95 5.4 ms, max 9.3 ms;
+cleanup confirmed. It never opens the microphone. Physical Brain voice/playback
+acceptance remains **PENDING**. The owner may now repeat **START ARY BRAIN VOICE +
+PLAYBACK** while present. Nothing in this correction enables unattended recording.

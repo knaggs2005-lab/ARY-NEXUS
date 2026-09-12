@@ -62,6 +62,7 @@ export class RealtimeMicRelayClient {
   private capture?: AudioCaptureSession;
   private captureAbort = new AbortController();
   private relayId?: string;
+  private relayCapability?: string;
   private queue: Uint8Array[] = [];
   private inFlightFrames = 0;
   private sending?: Promise<void>;
@@ -79,7 +80,7 @@ export class RealtimeMicRelayClient {
     private readonly provider: AudioCaptureProvider,
     private readonly request: RelayRequest,
     private readonly output?: {
-      open(id: string): Promise<void>;
+      open(id: string, capability: string): Promise<void>;
       close(): Promise<void>;
     },
   ) {}
@@ -122,10 +123,13 @@ export class RealtimeMicRelayClient {
         15000,
       );
       this.relayId = result.relay_id;
+      if (!/^[a-f0-9]{64}$/.test(result.relay_capability ?? ""))
+        throw new Error("RELAY_CAPABILITY_MISSING");
+      this.relayCapability = result.relay_capability;
       this.health.relay_state = result.relay_state;
       this.health.realtime_state = result.realtime_state;
       if (this.stopRequested) return;
-      await this.output?.open(this.relayId);
+      await this.output?.open(this.relayId, this.relayCapability);
       if (this.stopRequested) return;
       this.accepting = true;
       this.capture = await this.provider.start(
@@ -356,7 +360,11 @@ export class RealtimeMicRelayClient {
         this.health.failure_code ??= "RELAY_STOP_FAILED";
       }
     }
-    await this.output?.close();
+    try {
+      await this.output?.close();
+    } finally {
+      this.relayCapability = undefined;
+    }
     this.health.cleanup_confirmed =
       closed && !this.capture?.health.microphone_active;
     this.health.test_duration_ms = Date.now() - this.startedAt;
@@ -380,23 +388,32 @@ export class RealtimeMicRelayClient {
     options: RequestInit,
     timeout: number,
   ): Promise<T> {
+    const headers = new Headers(options.headers);
+    if (
+      this.relayId &&
+      this.relayCapability &&
+      path.startsWith(`realtime/session/${this.relayId}/`)
+    )
+      headers.set("X-Ary-Realtime-Relay", this.relayCapability);
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        this.request(path, { ...options, signal: abort.signal }).then(
-          async (response) => {
-            if (!response.ok)
-              throw new Error(
-                response.status === 401
-                  ? "AUTHENTICATION_FAILED"
-                  : response.status === 404
-                    ? "RELAY_OR_CONVERSATION_NOT_FOUND"
-                    : "RELAY_REQUEST_FAILED",
-              );
-            return (await response.json()) as T;
-          },
-        ),
+        this.request(path, {
+          ...options,
+          headers: Object.fromEntries(headers),
+          signal: abort.signal,
+        }).then(async (response) => {
+          if (!response.ok)
+            throw new Error(
+              response.status === 401
+                ? "AUTHENTICATION_FAILED"
+                : response.status === 404
+                  ? "RELAY_OR_CONVERSATION_NOT_FOUND"
+                  : "RELAY_REQUEST_FAILED",
+            );
+          return (await response.json()) as T;
+        }),
         new Promise<never>((_, reject) => {
           timer = setTimeout(() => {
             abort.abort();

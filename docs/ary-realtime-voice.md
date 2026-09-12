@@ -204,3 +204,133 @@ Nothing starts automatically.
 Overall **HEY ARY: NOT READY**. Implemented voice/relay/Brain lifecycle is tested;
 production local recognition, calibrated owner verification, physical playback and
 full conversational acceptance are not complete. No unrelated milestone was started.
+
+## Realtime HTTP hot-path correction — September 12, 2026
+
+**IMPLEMENTED / LIVE SYNTHETIC HTTP VERIFIED. Physical acceptance pending.**
+This narrow correction supersedes the earlier per-request authentication description
+for relay follow-ups only. No model, Brain semantics, tools, wake recognition, owner
+voice, schema, batch size, or buffer limit changed. The separately observed
+`/api/events` 503 / “Nexus operational event could not be stored” issue is untouched.
+
+### Confirmed cause and request boundaries
+
+Source trace confirmed that `src/server/http.ts` awaited `context(request)` before
+routing audio, status, output, and stop. In Supabase mode, `src/server/context.ts`
+then called `auth.getUser`, upserted the user profile, constructed the repository,
+loaded action context, and constructed the complete service graph on every packet
+and poll. The owner-observed 339 ms batch exceeded its 300 ms production interval.
+That observation was not a separately instrumented breakdown of individual DB calls.
+
+Only `POST /api/realtime/session/start` retains that canonical authenticated path,
+including the existing conversation ownership check and optional existing Brain
+composition. Its successful response additionally supplies `relay_capability`.
+Exact follow-up methods/paths are resolved before full context:
+
+- `POST /api/realtime/session/:id/audio`
+- `POST /api/realtime/session/:id/output`
+- `GET /api/realtime/session/:id/status`
+- `POST /api/realtime/session/:id/stop`
+
+These require `X-Ary-Realtime-Relay`. A process-local locator maps a live relay ID to
+its existing owner manager, which validates the capability and supplies the stored
+owner identity. It contains no second relay, Brain, permission system, or repository.
+No Supabase authentication/profile work or service construction occurs on these
+follow-ups. Invalid capability requests fail without falling through to full context.
+Unrelated API paths and their authorization are unchanged.
+
+### Capability and cleanup
+
+- Each successful start generates 32 cryptographically random bytes (256 bits), hex
+  encoded. Only the start response contains the raw capability; it is `no-store`.
+- The manager stores only SHA-256, checks the bounded format, and uses timing-safe
+  digest comparison. A capability for another relay/owner cannot authorize this one.
+- This is a scoped bearer credential for one relay, not a new user login. The client's
+  existing `api()` may still attach its login token; follow-ups derive authority from
+  the relay capability rather than re-authenticating that token.
+- Lifetime inherits the existing five-minute maximum session TTL. Stop, expiry,
+  provider failure/closure, output disconnection and forwarding failure remove the
+  locator and clear the digest through the existing cleanup path. Wrong/missing,
+  expired and already-closed capabilities receive the same bounded rejection.
+- Internal owner-scoped stop stays idempotent. A repeated HTTP stop using a revoked
+  capability is rejected; there is no authorization via a historical tombstone.
+  `include_closed=1` does not restore revoked access. Active output streams deliver
+  bounded terminal events; uncertain closure is not reported as confirmed cleanup.
+- Client capability exists only in private transient memory and request headers. It
+  is cleared on cleanup and is absent from health, status, output, URLs, audit, logs,
+  browser storage and persisted fixtures. No audio persistence was added.
+- Same-origin write enforcement remains ahead of routing. Relay routes and the
+  diagnostic page stay unavailable in production. Managers/locators remain local to
+  one server process; no shared or distributed authentication mechanism was added.
+
+Development hot reload retains old manager instances. The first actual HTTP attempt
+received no capability from an old pre-correction manager and failed closed without
+sending audio. The dev server was restarted once to load the new lifecycle; process
+shutdown also ended that old session. Restart after installing this correction before
+starting a new acceptance session. No active microphone was used during this work.
+
+### Repeatable real HTTP performance diagnostic
+
+Run `npm run dev`, sign in at `http://127.0.0.1:3000/`, and open
+`http://127.0.0.1:3000/mic-test`. Load/select an existing conversation and click
+**BENCHMARK HTTP — SYNTHETIC ONLY**. This is a browser diagnostic, not a Node
+in-process timing surrogate. It requires one normal authenticated session start,
+sends 30 actual same-origin HTTP requests of 15 silence frames each at 300 ms
+intervals, consumes a live output stream, polls status every 400 ms, and closes.
+Measurements include client request/header preparation and HTTP/JSON completion;
+start/handshake latency is reported separately and excluded from batch percentiles.
+It never opens a microphone/speaker, requests Brain execution, or calls separate
+STT/TTS APIs. It does send generated zero PCM to OpenAI Realtime. No retries.
+
+Measured on the running signed-in Supabase development application:
+
+| Measurement | Result |
+| --- | ---: |
+| Authenticated start + provider handshake | 853.5 ms |
+| Audio batches / frames / bytes | 30 / 450 / 432,000 |
+| Audio HTTP mean | 4.6 ms |
+| Audio HTTP p50 | 4.3 ms |
+| Audio HTTP p95 | 5.4 ms |
+| Audio HTTP maximum | 9.3 ms |
+| Concurrent status polls | 23 |
+| Output connected / cleanup confirmed | true / true |
+| Diagnostic result | PASS |
+
+P95 is comfortably below 150 ms and all batches are below 300 ms. The unchanged
+15-frame cadence is sustainable in this measured run. Status polling stays at 400 ms:
+the measured concurrent workload no longer requires DB/service initialization, so
+there was no evidence-based need to reduce diagnostic responsiveness. This does not
+prove long-duration physical capture, speech processing latency, or audible response
+latency. The output route's approximately nine-second server log duration describes
+its streaming lifetime, not a nine-second request-readiness delay.
+
+The existing **CHECK RELAY — SYNTHETIC ONLY** client path also passed in the browser:
+15 captured/forwarded frames, 14,400 bytes, 24 kHz mono, 960 bytes per frame, no failures,
+STOPPED/CLOSED, microphone false, cleanup confirmed. No physical mic was opened.
+
+### Fresh verification
+
+- `npm test`: **1,691 tests / 106 files PASS**. Focused coverage includes authenticated
+  owned-conversation starts, unique capability scope, missing/wrong/other-owner
+  credentials, every hot route bypassing a throwing `context` mock, ordered 15-frame
+  forwarding, no persistence/log exposure, expiry/failure/closed revocation, client
+  header propagation/clearing and no retry after uncertain audio POSTs.
+- `npm run typecheck`: **PASS**.
+- `npm run build`: **PASS** in an isolated source copy, preserving dev `.next`.
+  Production checks: `/mic-test` 404, cross-origin voice POST 403, no server OpenAI or
+  Hermes credential symbols in public JS.
+- `npm run format:check`: **FAIL, baseline only** — unchanged warnings in
+  `src/components/calls/calls-panel.tsx`, `src/domain/permissions.ts`,
+  `src/infrastructure/phone/twilio-phone.ts`, `src/services/phone-service.ts`.
+- `git diff --check`: **PASS**.
+- `npm run test:realtime-live`: **PASS**, SOCKET_OPEN → SESSION_CREATED →
+  SESSION_UPDATE_SENT → SESSION_UPDATED → PASS.
+- `npx tsx scripts/evaluate-realtime-relay-live.ts`: **REAL_RELAY PASS**, 15 generated
+  silence frames / 14,400 bytes / closed. This service-level check is separate from
+  the actual HTTP benchmark above.
+
+**PHYSICAL_ACCEPTANCE: PENDING.** Now that HTTP throughput passes, the owner can run
+**START ARY BRAIN VOICE + PLAYBACK** while present, speak and interrupt, then stop and
+verify microphone false, CLOSED/STOPPED, counters stable and cleanup confirmed. The
+prior 31-frame BACKPRESSURE_LIMIT report has not been overwritten with a hardware
+success claim. No wake/model installation or next milestone was started.

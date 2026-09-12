@@ -19,13 +19,16 @@ export class RealtimeOutputClient {
     private readonly event: (event: RelayOutput) => void = () => {},
     private readonly retainPlaybackContext = false,
   ) {}
-  async open(id: string) {
+  async open(id: string, capability?: string) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let response: Response;
     try {
       response = await Promise.race([
         this.request(`realtime/session/${id}/output`, {
           method: "POST",
+          headers: capability
+            ? { "X-Ary-Realtime-Relay": capability }
+            : undefined,
           signal: this.abort.signal,
         }),
         new Promise<never>((_, reject) => {

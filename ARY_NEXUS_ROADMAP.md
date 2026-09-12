@@ -429,3 +429,22 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 - No dependencies added, production deployment, device use, owner enrollment or
   external actions performed. No subsequent unrelated milestone started.
 - Canonical current voice status and morning procedure: [Ary realtime voice](docs/ary-realtime-voice.md).
+
+### Realtime hot-path performance correction — September 12
+
+- IMPLEMENTED / LIVE SYNTHETIC HTTP VERIFIED: authenticated session start and
+  conversation ownership preserved; exact audio/output/status/stop follow-ups use a
+  per-relay 256-bit ephemeral capability and the existing manager, bypassing full
+  Supabase/profile/service initialization. Capabilities revoked on terminal cleanup.
+- Actual same-origin browser benchmark on the signed-in Supabase app: 30 batches /
+  450 generated silence frames, 23 status polls, output connected, cleanup true.
+  Audio HTTP mean 4.6 ms; p50 4.3 ms; p95 5.4 ms; maximum 9.3 ms. Start excluded
+  (853.5 ms). Unchanged 15-frame / 300 ms batch and 30-frame / 600 ms buffer.
+- Fresh validation: 1,691 tests / 106 files PASS; typecheck/build/diff check PASS;
+  live handshake and REAL_RELAY PASS. Format check has only the same four unrelated
+  baseline warnings. Existing client synthetic browser path also closed cleanly.
+- PHYSICAL_ACCEPTANCE_PENDING: owner should repeat START ARY BRAIN VOICE + PLAYBACK
+  while present. No owner microphone used for this correction. Existing DONE entries
+  and unrelated NEXT 3 preserved; no new milestone started.
+- The separate `/api/events` 503 storage failure was observed and intentionally
+  untouched. [Detailed evidence and harness](docs/ary-realtime-voice.md#realtime-http-hot-path-correction--september-12-2026).

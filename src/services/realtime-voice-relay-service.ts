@@ -1,3 +1,4 @@
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { RealtimeSpeechQueue } from "./realtime-speech-queue";
 import { RealtimeBrainBridge } from "./realtime-brain-bridge";
 import type { AryBrainService } from "./ary-brain-service";
@@ -36,6 +37,8 @@ export type RealtimeRelayStatus = {
 };
 
 export type RealtimeRelayStart = {
+  /** Ephemeral bearer capability: start response only, never status or events. */
+  relay_capability: string;
   relay_id: string;
   relay_state: "ACTIVE";
   realtime_state: RealtimeVoiceSessionState;
@@ -53,6 +56,7 @@ export type RealtimeRelayAppend = {
 };
 
 type RelayEntry = {
+  capability_digest: Buffer;
   relay_id: string;
   user_id: string;
   session: RealtimeVoiceSession;
@@ -124,6 +128,7 @@ export class RealtimeVoiceRelayService {
       };
       const session = await this.provider.createSession(config);
       const relayId = crypto.randomUUID();
+      const capability = randomBytes(32).toString("hex");
       const createdAt = this.now().toISOString();
       const status: RealtimeRelayStatus = {
         relay_id: relayId,
@@ -142,6 +147,9 @@ export class RealtimeVoiceRelayService {
       };
       const entry = {} as RelayEntry;
       entry.relay_id = relayId;
+      entry.capability_digest = createHash("sha256")
+        .update(capability)
+        .digest();
       entry.user_id = userId;
       entry.session = session;
       entry.status = status;
@@ -158,6 +166,7 @@ export class RealtimeVoiceRelayService {
       );
       entry.expiry_timer = this.scheduleExpiry(relayId);
       this.entries.set(relayId, entry);
+      relayLocators().set(relayId, this);
       this.activeByUser.set(userId, relayId);
       if (brain) {
         this.resetInactivity(entry);
@@ -182,6 +191,7 @@ export class RealtimeVoiceRelayService {
         }
       }
       return {
+        relay_capability: capability,
         relay_id: relayId,
         relay_state: "ACTIVE",
         realtime_state: session.state,
@@ -194,6 +204,27 @@ export class RealtimeVoiceRelayService {
     } finally {
       this.startingUsers.delete(userId);
     }
+  }
+
+  /** Resolves authority from a capability bound to this exact live relay. No I/O. */
+  authorizeCapability(relayId: string, capability: string | null): string {
+    this.expireEntries();
+    const entry = this.entries.get(relayId);
+    if (
+      !entry ||
+      entry.finalized ||
+      !capability ||
+      !/^[a-f0-9]{64}$/.test(capability) ||
+      !timingSafeEqual(
+        entry.capability_digest,
+        createHash("sha256").update(capability).digest(),
+      )
+    )
+      throw new AppError(
+        "Realtime relay capability is invalid or expired",
+        404,
+      );
+    return entry.user_id;
   }
 
   output(userId: string, relayId: string, signal: AbortSignal) {
@@ -231,6 +262,9 @@ export class RealtimeVoiceRelayService {
       try {
         entry.session.sendAudio(frame);
       } catch (error) {
+        entry.status.failure_code = "AUDIO_FORWARD_FAILED";
+        this.detach(entry);
+        void this.closeEntry(entry).catch(() => {});
         const message =
           error instanceof Error
             ? error.message
@@ -386,6 +420,8 @@ export class RealtimeVoiceRelayService {
   private detach(entry: RelayEntry) {
     if (entry.finalized) return;
     entry.finalized = true;
+    relayLocators().delete(entry.relay_id);
+    entry.capability_digest.fill(0);
     entry.brain?.close();
     entry.output.close(entry.status.failure_code ?? undefined);
     clearTimeout(entry.inactivity_timer);
@@ -413,8 +449,24 @@ export class RealtimeVoiceRelayService {
 }
 
 const globalState = globalThis as typeof globalThis & {
+  aryRealtimeRelayLocators?: Map<string, RealtimeVoiceRelayService>;
   aryRealtimeRelayManagers?: Map<string, RealtimeVoiceRelayService>;
 };
+
+function relayLocators() {
+  return (globalState.aryRealtimeRelayLocators ??= new Map());
+}
+
+/** Locator only: the existing manager remains the session and permission authority. */
+export function resolveRealtimeRelay(
+  relayId: string,
+  capability: string | null,
+) {
+  const manager = relayLocators().get(relayId);
+  if (!manager)
+    throw new AppError("Realtime relay capability is invalid or expired", 404);
+  return { manager, userId: manager.authorizeCapability(relayId, capability) };
+}
 
 /** Returns the one in-process manager for an authenticated owner. */
 export function realtimeVoiceRelayFor(

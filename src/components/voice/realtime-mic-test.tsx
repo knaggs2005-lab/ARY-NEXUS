@@ -4,6 +4,10 @@ import type {
   AudioCaptureFrame,
   AudioCaptureProvider,
 } from "../../domain/audio-capture";
+import {
+  diagnoseRealtimeHttp,
+  type RealtimeHttpDiagnostic,
+} from "./realtime-http-diagnostic";
 import { RealtimePlayback } from "./realtime-playback";
 import { RealtimeOutputClient } from "./realtime-output-client";
 import { api } from "../api";
@@ -14,6 +18,8 @@ import {
 } from "./realtime-mic-relay-client";
 
 export function RealtimeMicTest() {
+  const [benchmarking, setBenchmarking] = useState(false);
+  const [benchmark, setBenchmark] = useState<RealtimeHttpDiagnostic>();
   const client = useRef<RealtimeMicRelayClient | null>(null);
   const playbackRef = useRef<RealtimePlayback | null>(null);
   const [playbackHealth, setPlaybackHealth] =
@@ -132,8 +138,11 @@ export function RealtimeMicTest() {
     setHealth(next.snapshot());
   }
   const busy =
-    health &&
-    ["STARTING", "CAPTURING", "STOPPING"].includes(health.client_capture_state);
+    benchmarking ||
+    (health &&
+      ["STARTING", "CAPTURING", "STOPPING"].includes(
+        health.client_capture_state,
+      ));
   return (
     <section
       style={{ borderTop: "1px solid #27304a", marginTop: 32, paddingTop: 24 }}
@@ -189,7 +198,7 @@ export function RealtimeMicTest() {
         </button>
         <button
           onClick={() => void client.current?.stop()}
-          disabled={!busy}
+          disabled={!busy || benchmarking}
           style={{ padding: 12 }}
         >
           STOP REALTIME MIC TEST
@@ -211,6 +220,31 @@ export function RealtimeMicTest() {
         Playback test uses your speakers and sends microphone audio to OpenAI.
         Start only when present. Stop ends both paths.
       </p>
+      <button
+        disabled={!!busy || !conversation}
+        onClick={async () => {
+          setBenchmarking(true);
+          try {
+            setBenchmark(await diagnoseRealtimeHttp(api, conversation));
+          } finally {
+            setBenchmarking(false);
+          }
+        }}
+      >
+        BENCHMARK HTTP — SYNTHETIC ONLY
+      </button>
+      <p>
+        HTTP benchmark: 30 silence batches with concurrent status polling and
+        output streaming. No microphone, Brain, STT, or TTS calls.
+      </p>
+      {benchmarking && (
+        <p role="status">Measuring actual HTTP batch latency…</p>
+      )}
+      {benchmark && (
+        <pre aria-label="HTTP relay benchmark">
+          {JSON.stringify(benchmark, null, 2)}
+        </pre>
+      )}
       <p role="status">Test source: {source}</p>
       {playbackHealth && (
         <pre aria-label="Bounded playback metrics">

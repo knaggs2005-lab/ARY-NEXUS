@@ -39,6 +39,7 @@ import { withoutEmbedding } from "../domain/models";
 import { transcriptionResponse } from "./voice-stream";
 import {
   realtimeVoiceRelayFor,
+  resolveRealtimeRelay,
   REALTIME_MAX_BATCH_BYTES,
   type RealtimeVoiceRelayService,
 } from "../services/realtime-voice-relay-service";
@@ -159,6 +160,41 @@ export async function handle(
           : await bridge.complete(input),
       );
     }
+    // Start still passes through canonical context + conversation ownership below.
+    // Exact follow-ups use only authority issued by that authenticated start.
+    if (
+      route.startsWith("realtime/session") &&
+      process.env.NODE_ENV === "production"
+    )
+      throw new AppError("Realtime relay is unavailable in production", 404);
+    if (
+      path[0] === "realtime" &&
+      path[1] === "session" &&
+      path.length === 4 &&
+      ((method === "POST" && ["audio", "output", "stop"].includes(path[3])) ||
+        (method === "GET" && path[3] === "status"))
+    ) {
+      const relayId = z.uuid().parse(path[2]);
+      const { manager, userId } = resolveRealtimeRelay(
+        relayId,
+        request.headers.get("X-Ary-Realtime-Relay"),
+      );
+      if (path[3] === "audio")
+        return json(
+          await manager.append(
+            userId,
+            relayId,
+            await binaryBody(request, REALTIME_MAX_BATCH_BYTES),
+          ),
+        );
+      if (path[3] === "output")
+        return manager.output(userId, relayId, request.signal);
+      if (path[3] === "status")
+        return json(
+          required(manager.status(userId, relayId), "Realtime relay"),
+        );
+      return json(await manager.stop(userId, relayId));
+    }
     const {
       workers,
       outcomeEngine,
@@ -198,24 +234,6 @@ export async function handle(
         owner_voice_enabled: process.env.ARY_OWNER_VOICE_ENABLED === "true",
       });
     }
-    if (
-      route.startsWith("realtime/session") &&
-      process.env.NODE_ENV === "production"
-    )
-      throw new AppError("Realtime relay is unavailable in production", 404);
-    if (
-      path[0] === "realtime" &&
-      path[1] === "session" &&
-      path.length === 4 &&
-      path[3] === "output" &&
-      method === "POST"
-    ) {
-      return realtimeRelay().output(
-        repository.userId,
-        z.uuid().parse(path[2]),
-        request.signal,
-      );
-    }
     if (route === "realtime/session/start" && method === "POST") {
       const input = z
         .object({ conversation_id: z.uuid(), brain: z.boolean().optional() })
@@ -233,48 +251,6 @@ export async function handle(
         ),
         201,
       );
-    }
-    if (
-      path[0] === "realtime" &&
-      path[1] === "session" &&
-      path.length === 4 &&
-      path[3] === "audio" &&
-      method === "POST"
-    ) {
-      const relayId = z.uuid().parse(path[2]);
-      const audio = await binaryBody(request, REALTIME_MAX_BATCH_BYTES);
-      return json(
-        await realtimeRelay().append(repository.userId, relayId, audio),
-      );
-    }
-    if (
-      path[0] === "realtime" &&
-      path[1] === "session" &&
-      path.length === 4 &&
-      path[3] === "status" &&
-      method === "GET"
-    ) {
-      const relayId = z.uuid().parse(path[2]);
-      return json(
-        required(
-          realtimeRelay().status(
-            repository.userId,
-            relayId,
-            url.searchParams.get("include_closed") === "1",
-          ),
-          "Realtime relay",
-        ),
-      );
-    }
-    if (
-      path[0] === "realtime" &&
-      path[1] === "session" &&
-      path.length === 4 &&
-      path[3] === "stop" &&
-      method === "POST"
-    ) {
-      const relayId = z.uuid().parse(path[2]);
-      return json(await realtimeRelay().stop(repository.userId, relayId));
     }
     if (route === "workers/hermes/diagnostics" && method === "GET") {
       if (process.env.NODE_ENV === "production")

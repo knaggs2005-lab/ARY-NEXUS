@@ -45,6 +45,7 @@ function setup() {
       order.push("relay-start");
       return Response.json({
         relay_id: conversation,
+        relay_capability: "a".repeat(64),
         relay_state: "ACTIVE",
         realtime_state: "IDLE",
       });
@@ -350,6 +351,7 @@ describe("physical capture relay client (synthetic input only)", () => {
     release(
       Response.json({
         relay_id: conversation,
+        relay_capability: "a".repeat(64),
         relay_state: "ACTIVE",
         realtime_state: "IDLE",
       }),
@@ -394,4 +396,33 @@ describe("physical capture relay client (synthetic input only)", () => {
       expect(s.order).toContain("relay-stop");
     },
   );
+});
+
+it("keeps the capability in request headers only and clears it after cleanup", async () => {
+  const s = setup();
+  await s.client.start(conversation);
+  for (let i = 0; i < 15; i++) s.frame();
+  await s.client.stop();
+  for (const [path, options] of s.request.mock.calls) {
+    const capability = new Headers(options?.headers).get(
+      "X-Ary-Realtime-Relay",
+    );
+    expect(capability).toBe(path.endsWith("/start") ? null : "a".repeat(64));
+    expect(path).not.toContain("a".repeat(64));
+    if (typeof options?.body === "string")
+      expect(options.body).not.toContain("a".repeat(64));
+  }
+  expect(JSON.stringify(s.client.snapshot())).not.toContain("a".repeat(64));
+  expect(
+    (s.client as unknown as { relayCapability?: string }).relayCapability,
+  ).toBeUndefined();
+});
+
+it("passes the capability to output setup before microphone capture", async () => {
+  const s = setup();
+  const output = { open: vi.fn(async () => {}), close: vi.fn(async () => {}) };
+  const client = new RealtimeMicRelayClient(s.provider, s.request, output);
+  await client.start(conversation);
+  expect(output.open).toHaveBeenCalledWith(conversation, "a".repeat(64));
+  await client.stop();
 });
