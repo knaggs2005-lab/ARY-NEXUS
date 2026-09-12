@@ -44,7 +44,8 @@
     "missions:worker": "tsx scripts/run-missions.ts",
     "control:build": "node scripts/build-control-helper.mjs",
     "test:realtime-live": "tsx scripts/evaluate-realtime-live.ts",
-    "test:mic-live": "tsx scripts/evaluate-mic-live.ts"
+    "test:mic-live": "tsx scripts/evaluate-mic-live.ts",
+    "diagnose:board": "tsx scripts/diagnose-board-provider.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

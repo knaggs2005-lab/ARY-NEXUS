@@ -462,6 +462,33 @@ export class BoardMeetingService {
               };
             } catch (error) {
               abort.throwIfAborted();
+              const trace = usage?.routing;
+              const lastAttempt = trace?.attempts.at(-1);
+              const jsonFailure =
+                error instanceof SyntaxError || error instanceof ZodError
+                  ? error instanceof ZodError
+                    ? error.issues.map((i) => i.path.join(".")).join(", ") ||
+                      "schema validation"
+                    : error.message
+                  : null;
+              console.info(
+                JSON.stringify({
+                  event: "ary.board_diagnostic",
+                  role,
+                  route_selected: Boolean(trace?.selected),
+                  provider:
+                    lastAttempt?.provider ?? usage?.provider ?? this.model.name,
+                  model: lastAttempt?.model ?? usage?.model ?? "unavailable",
+                  provider_call_attempted: Boolean(trace?.attempts.length),
+                  elapsed_ms:
+                    trace?.latency_ms ?? usage?.metrics.latency_ms ?? 0,
+                  provider_error: lastAttempt?.error_code ?? null,
+                  response_received: lastAttempt?.status === "succeeded",
+                  json_parsing_attempted: Boolean(usage),
+                  json_parsing_failure: jsonFailure,
+                  fallback_reason: trace?.reason ?? null,
+                }),
+              );
               result = {
                 role,
                 status: "failed",
