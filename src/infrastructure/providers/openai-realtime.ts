@@ -26,7 +26,7 @@ type OpenAIRealtimeEvent = {
 };
 export interface OpenAIRealtimeTransport {
   connect(onEvent: (event: OpenAIRealtimeEvent) => void): Promise<void>;
-  send(command: { type: string }): void;
+  send(command: { type: string; [key: string]: unknown }): void;
   close(): Promise<void>;
 }
 const capabilities = [
@@ -173,11 +173,14 @@ class Session implements RealtimeVoiceSession {
   }
   sendAudio(frame: RealtimeVoiceAudioFrame) {
     if (this.closed) throw new Error("Realtime voice session is closed");
+    if (frame.encoding !== "pcm16" || frame.channels !== 1)
+      throw new Error("Unsupported audio frame format");
     if (
       !Number.isFinite(frame.sample_rate_hz) ||
       frame.sample_rate_hz < 8000 ||
       frame.sample_rate_hz > 96000 ||
-      frame.channels < 1
+      frame.channels < 1 ||
+      frame.sample_rate_hz !== 24000
     )
       throw new Error("Invalid audio frame metadata");
   }

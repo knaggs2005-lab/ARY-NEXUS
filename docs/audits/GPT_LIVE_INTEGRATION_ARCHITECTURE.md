@@ -98,3 +98,7 @@ Added `src/infrastructure/providers/openai-realtime.ts`. It contains an injected
 ## Stage 2A.1 correction
 
 Removed serialization of the Nexus-only brain-abort command, made `response.done` always return the canonical session to `IDLE`, made remote connection closure terminal and idempotent, and removed the unimplemented reconnect capability. Focused adapter tests cover these boundaries. No network or provider call was introduced.
+
+## Stage 2B — server transport
+
+Added an authenticated server-side WebSocket transport with minimal `session.update` (PCM16 mono 24 kHz, server VAD, text/audio modalities, empty tools). It is composed server-side only when `OPENAI_REALTIME_MODEL` and the existing `OPENAI_API_KEY` are present. Browser, Brain delegation, current STT/TTS, Twilio, UI, actions and memory remain disconnected.

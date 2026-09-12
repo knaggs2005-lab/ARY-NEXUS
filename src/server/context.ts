@@ -1,3 +1,5 @@
+import { OpenAIRealtimeSessionProvider } from "../infrastructure/providers/openai-realtime";
+import { OpenAIRealtimeWebSocketTransport } from "../infrastructure/providers/openai-realtime-transport";
 import { AgentProviderRegistry } from "../domain/agent-provider";
 import { HermesAgentProvider } from "../infrastructure/agents/hermes-agent-provider";
 import { DelegatedJobService } from "../services/delegated-job-service";
@@ -424,6 +426,15 @@ export function services(
     phone,
     actionTools,
     perception,
+    realtimeVoice: new OpenAIRealtimeSessionProvider(
+      process.env.OPENAI_API_KEY && process.env.OPENAI_REALTIME_MODEL
+        ? () =>
+            new OpenAIRealtimeWebSocketTransport(
+              process.env.OPENAI_API_KEY!,
+              process.env.OPENAI_REALTIME_MODEL!,
+            )
+        : undefined,
+    ),
     voice: () => {
       if (
         (process.env.ARY_STT_PROVIDER ?? "openai") !== "openai" ||
