@@ -23,10 +23,12 @@ export class VoiceActivationService {
   private offEnded: (() => void) | null = null;
   private listeners = new Set<(event: VoiceActivationEvent) => void>();
   constructor(
-    private readonly wake: Pick<
-      WakeWordService,
-      "onEvent" | "pause" | "resume" | "health"
-    >,
+    private readonly wake: {
+      onEvent: WakeWordService["onEvent"];
+      pause: WakeWordService["pause"];
+      resume: WakeWordService["resume"];
+      health: () => { state: string };
+    },
     private readonly activator: RealtimeVoiceActivator,
   ) {
     this.offWake = wake.onEvent((event) => {
