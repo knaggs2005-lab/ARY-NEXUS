@@ -63,29 +63,61 @@ export class BrowserAudioCaptureProvider implements AudioCaptureProvider {
       duration = config.frameDurationMs ?? 20;
     if (target !== RATE || duration !== 20)
       throw new Error("Capture requires 24 kHz, 20 ms frames");
-    const signal = config.signal ?? new AbortController().signal;
-    signal.throwIfAborted();
+    const lifetime = new AbortController();
+    const callerSignal = config.signal;
+    const forwardAbort = () => lifetime.abort();
+    callerSignal?.addEventListener("abort", forwardAbort, { once: true });
+    if (callerSignal?.aborted) lifetime.abort();
     let release: (() => void) | undefined,
       stopCapture: (() => void) | undefined,
+      stream: MediaStream | undefined,
       stopped = false,
-      paused = false;
-    let unsupportedRate: number | null = null;
+      terminal = false,
+      paused = false,
+      failureSent = false;
     const health: AudioCaptureHealth = {
       state: "STARTING",
       sample_rate_hz: RATE,
       channels: 1,
       frame_count: 0,
+      microphone_active: false,
     };
     const packetizer = new Pcm16Packetizer((frame) => {
-      if (!stopped && !paused) {
+      if (!terminal && !paused) {
         health.frame_count++;
         onFrame(frame);
       }
     });
-    const fail = (code: string, message: string) => {
+    const failOnce = (code: string, message: string) => {
+      if (failureSent || stopped) return;
+      failureSent = true;
+      terminal = true;
       health.state = "FAILED";
       health.reason = message;
+      health.microphone_active = false;
       onFailure({ code, message });
+    };
+    const cleanup = async (state: "STOPPED" | "FAILED") => {
+      if (stopped) return;
+      stopped = true;
+      terminal = true;
+      packetizer.clear();
+      lifetime.abort();
+      stopCapture?.();
+      stopCapture = undefined;
+      stream?.getTracks().forEach((track) => {
+        track.removeEventListener?.("ended", onTrackEnded);
+        track.stop();
+      });
+      release?.();
+      release = undefined;
+      callerSignal?.removeEventListener("abort", forwardAbort);
+      health.state = state;
+      health.microphone_active = false;
+    };
+    const onTrackEnded = () => {
+      failOnce("TRACK_ENDED", "Microphone track ended unexpectedly");
+      void cleanup("FAILED");
     };
     const session: AudioCaptureSession = {
       health,
@@ -102,65 +134,71 @@ export class BrowserAudioCaptureProvider implements AudioCaptureProvider {
           health.state = "CAPTURING";
         }
       },
-      stop: async () => {
-        if (stopped) return;
-        stopped = true;
-        packetizer.clear();
-        stopCapture?.();
-        stopCapture = undefined;
-        release?.();
-        release = undefined;
-        health.state = "STOPPED";
-      },
+      stop: () => cleanup("STOPPED"),
     };
+    lifetime.signal.addEventListener(
+      "abort",
+      () => {
+        if (!stopped) void cleanup("STOPPED");
+      },
+      { once: true },
+    );
     try {
-      release = await (this.deps.lease ?? microphoneLease)(signal);
-      signal.throwIfAborted();
+      lifetime.signal.throwIfAborted();
+      release = await (this.deps.lease ?? microphoneLease)(lifetime.signal);
+      lifetime.signal.throwIfAborted();
       const gum =
         this.deps.getUserMedia ??
         ((constraints: MediaStreamConstraints) =>
           navigator.mediaDevices.getUserMedia(constraints));
-      const stream = await gum({
+      stream = await gum({
         audio: { channelCount: { exact: 1 }, sampleRate: { ideal: RATE } },
       });
-      if (signal.aborted) {
-        stream.getTracks().forEach((t) => t.stop());
-        await session.stop();
+      stream
+        .getTracks()
+        .forEach((track) => track.addEventListener?.("ended", onTrackEnded));
+      if (lifetime.signal.aborted) {
+        await cleanup("STOPPED");
         throw new DOMException("Cancelled", "AbortError");
       }
       const capture = this.deps.capture ?? capturePCM;
-      stopCapture = await capture(
+      const cleanupCapture = await capture(
         stream,
-        signal,
+        lifetime.signal,
         (samples, actualRate) => {
           if (actualRate !== RATE) {
-            unsupportedRate = actualRate;
-            fail(
+            failOnce(
               "UNSUPPORTED_SAMPLE_RATE",
               `AudioContext provided ${actualRate} Hz`,
             );
-            void session.stop();
+            void cleanup("FAILED");
             return;
           }
           packetizer.push(samples);
         },
         { sampleRate: RATE, channelCount: 1 },
       );
-      if (unsupportedRate !== null) {
-        await session.stop();
-        throw new Error(`AudioContext provided ${unsupportedRate} Hz`);
+      stopCapture = cleanupCapture;
+      if (terminal) stopCapture();
+      if (failureSent) throw new Error("Unsupported capture sample rate");
+      if (lifetime.signal.aborted) {
+        await cleanup("STOPPED");
+        throw new DOMException("Cancelled", "AbortError");
       }
       health.state = "CAPTURING";
+      health.microphone_active = true;
       return session;
     } catch (error) {
-      if (!stopped) await session.stop();
-      if (!(error instanceof DOMException && error.name === "AbortError"))
-        fail(
+      const cancelled =
+        error instanceof DOMException && error.name === "AbortError";
+      if (!cancelled && !failureSent)
+        failOnce(
           error instanceof Error && /sample/i.test(error.message)
             ? "UNSUPPORTED_SAMPLE_RATE"
             : "CAPTURE_FAILED",
           error instanceof Error ? error.message : "Microphone capture failed",
         );
+      await cleanup(cancelled ? "STOPPED" : "FAILED");
       throw error;
     }
   }

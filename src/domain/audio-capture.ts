@@ -18,6 +18,7 @@ export interface AudioCaptureHealth {
   sample_rate_hz: number;
   channels: 1;
   frame_count: number;
+  microphone_active: boolean;
   reason?: string;
 }
 export interface AudioCaptureSession {

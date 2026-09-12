@@ -4,9 +4,19 @@ import {
   Pcm16Packetizer,
 } from "../src/infrastructure/audio/browser-audio-capture";
 function stream() {
-  const track = { stop: vi.fn() };
-  return { getTracks: () => [track] } as unknown as MediaStream;
+  const listeners = new Map<string, () => void>();
+  const track = {
+    stop: vi.fn(),
+    addEventListener: (e: string, h: () => void) => listeners.set(e, h),
+    removeEventListener: (e: string) => listeners.delete(e),
+    end: () => listeners.get("ended")?.(),
+  };
+  return {
+    stream: { getTracks: () => [track] } as unknown as MediaStream,
+    track,
+  };
 }
+const tick = () => new Promise((r) => setTimeout(r, 0));
 describe("BrowserAudioCaptureProvider", () => {
   it("assembles exact 480 sample/960 byte frames across arbitrary chunks", () => {
     const frames: any[] = [];
@@ -22,44 +32,52 @@ describe("BrowserAudioCaptureProvider", () => {
     let receive: any;
     const release = vi.fn();
     const stopCapture = vi.fn();
+    const f = stream();
     const p = new BrowserAudioCaptureProvider({
       lease: async () => release,
-      getUserMedia: async () => stream(),
+      getUserMedia: async () => f.stream,
       capture: async (_s, _sig, cb) => {
         receive = cb;
         return stopCapture;
       },
     });
     const frames: any[] = [];
-    const s = await p.start({}, (f) => frames.push(f), vi.fn());
+    const s = await p.start({}, (x) => frames.push(x), vi.fn());
     receive(new Float32Array(240), 24000);
     s.pause();
+    expect(s.health.microphone_active).toBe(true);
     receive(new Float32Array(480), 24000);
     expect(frames).toHaveLength(0);
     s.resume();
+    expect(s.health.microphone_active).toBe(true);
     receive(new Float32Array(480), 24000);
     expect(frames).toHaveLength(1);
     await s.stop();
     await s.stop();
     expect(stopCapture).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledOnce();
+    expect(s.health.microphone_active).toBe(false);
   });
-  it("fails on unsupported context rate", async () => {
+  it("fails on unsupported context rate exactly once and cleans late capture", async () => {
     const failure = vi.fn();
-    const s = stream();
-    await expect(
-      new BrowserAudioCaptureProvider({
-        lease: async () => () => {},
-        getUserMedia: async () => s,
-        capture: async (_s, _sig, cb) => {
-          cb(new Float32Array(1), 44100);
-          return () => {};
-        },
-      }).start({}, vi.fn(), failure),
-    ).rejects.toBeTruthy();
+    const stopCapture = vi.fn();
+    const f = stream();
+    const result = new BrowserAudioCaptureProvider({
+      lease: async () => () => {},
+      getUserMedia: async () => f.stream,
+      capture: async (_s, _sig, cb) => {
+        cb(new Float32Array(1), 44100);
+        return stopCapture;
+      },
+    }).start({}, vi.fn(), failure);
+    await expect(result).rejects.toBeTruthy();
+    await tick();
+    expect(failure).toHaveBeenCalledOnce();
     expect(failure).toHaveBeenCalledWith(
       expect.objectContaining({ code: "UNSUPPORTED_SAMPLE_RATE" }),
     );
+    expect(stopCapture).toHaveBeenCalledOnce();
+    expect(f.track.stop).toHaveBeenCalled();
   });
   it("does not acquire the mic when lease is rejected", async () => {
     const gum = vi.fn();
@@ -72,5 +90,42 @@ describe("BrowserAudioCaptureProvider", () => {
       }).start({}, vi.fn(), vi.fn()),
     ).rejects.toThrow("lease busy");
     expect(gum).not.toHaveBeenCalled();
+  });
+  it("caller abort after startup stops capture and emits no later frames", async () => {
+    let receive: any;
+    const controller = new AbortController();
+    const f = stream();
+    const s = await new BrowserAudioCaptureProvider({
+      lease: async () => () => {},
+      getUserMedia: async () => f.stream,
+      capture: async (_s, _sig, cb) => {
+        receive = cb;
+        return () => {};
+      },
+    }).start({ signal: controller.signal }, vi.fn(), vi.fn());
+    controller.abort();
+    await tick();
+    expect(s.health.state).toBe("STOPPED");
+    receive(new Float32Array(480), 24000);
+    expect(s.health.frame_count).toBe(0);
+  });
+  it("track end fails once and cannot be resurrected by late callbacks", async () => {
+    let receive: any;
+    const failure = vi.fn();
+    const f = stream();
+    const s = await new BrowserAudioCaptureProvider({
+      lease: async () => () => {},
+      getUserMedia: async () => f.stream,
+      capture: async (_s, _sig, cb) => {
+        receive = cb;
+        return () => {};
+      },
+    }).start({}, vi.fn(), failure);
+    f.track.end();
+    await tick();
+    expect(failure).toHaveBeenCalledOnce();
+    expect(s.health.state).toBe("FAILED");
+    receive(new Float32Array(480), 24000);
+    expect(s.health.state).toBe("FAILED");
   });
 });
