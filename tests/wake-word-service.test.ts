@@ -91,3 +91,29 @@ describe("WakeWordService", () => {
     expect(s.health().microphoneActive).toBe(false);
   });
 });
+it("stop during wake startup fences a late lease and parallel start does not duplicate it", async () => {
+  let resolve!: (s: WakeWordSession) => void;
+  const start = vi.fn(
+    () =>
+      new Promise<WakeWordSession>((r) => {
+        resolve = r;
+      }),
+  );
+  const s = new WakeWordService({ id: "local", localOnly: true, start });
+  const one = s.start({ phrases: ["HEY_ARY"] }),
+    two = s.start({ phrases: ["HEY_ARY"] });
+  const stopping = s.stop(),
+    stop = vi.fn(async () => {});
+  resolve({
+    id: "late",
+    state: "LISTENING",
+    stop,
+    pause: async () => {},
+    resume: async () => {},
+    onEvent: () => () => {},
+  });
+  await Promise.all([one, two, stopping]);
+  expect(start).toHaveBeenCalledOnce();
+  expect(stop).toHaveBeenCalledOnce();
+  expect(s.health().microphoneActive).toBe(false);
+});

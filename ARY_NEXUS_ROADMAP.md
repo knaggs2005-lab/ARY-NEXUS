@@ -413,3 +413,19 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 - BLOCKED: real Hey Ary custom model/inference packaging; speaker model/calibration.
   OWNER_ACCEPTANCE_PENDING: audible playback, barge-in/echo, physical wake and enrollment.
 - This does not mark the complete Hey Ary product DONE. Classic voice is preserved.
+
+### Overnight voice Stage 2L final status — September 12
+
+- Realtime output, bounded pacing, barge-in, canonical Brain delegation and
+  wake/session/sleep composition: IMPLEMENTED / SYNTHETICALLY VERIFIED.
+- Live provider handshake, synthetic input relay and paced silent output: PASS.
+  Output: 127,200 bytes, first provider audio 582 ms; no physical speaker was used.
+- Final validation: 1,677 tests / 105 files PASS; typecheck/build PASS; production
+  dev-harness 404 and cross-origin write 403 PASS. Format check retains only the four
+  unrelated baseline warnings. Existing DONE milestones preserved.
+- BLOCKED: licensed custom Hey Ary model/inference packaging; local speaker
+  model/calibration. OWNER_ACCEPTANCE_PENDING: playback/prosody, echo/barge-in,
+  enrollment, real Brain/provider voice and full wake cycle. HEY ARY: NOT READY.
+- No dependencies added, production deployment, device use, owner enrollment or
+  external actions performed. No subsequent unrelated milestone started.
+- Canonical current voice status and morning procedure: [Ary realtime voice](docs/ary-realtime-voice.md).

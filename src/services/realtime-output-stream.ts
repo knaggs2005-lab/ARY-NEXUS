@@ -8,6 +8,58 @@ export class RealtimeOutputStream {
   private claimed = false;
   private terminal = false;
   private sequence = 0;
+  private queue: { turn: string; data: Uint8Array }[] = [];
+  private queuedBytes = 0;
+  private pacing?: ReturnType<typeof setTimeout>;
+  private waiters = new Set<() => void>();
+  private peakBytes = 0;
+  metrics() {
+    return {
+      queued_audio_bytes: this.queuedBytes,
+      peak_queued_audio_bytes: this.peakBytes,
+      max_queued_audio_bytes: 144000,
+    };
+  }
+  drained(): Promise<void> {
+    if (!this.queuedBytes && !this.pacing) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.add(resolve));
+  }
+  private clearAudio() {
+    clearTimeout(this.pacing);
+    this.pacing = undefined;
+    for (const part of this.queue) part.data.fill(0);
+    this.queue = [];
+    this.queuedBytes = 0;
+    this.waiters.forEach((resolve) => resolve());
+    this.waiters.clear();
+  }
+  private pumpAudio() {
+    if (this.terminal || this.pacing) return;
+    const part = this.queue.shift();
+    if (!part) {
+      this.waiters.forEach((resolve) => resolve());
+      this.waiters.clear();
+      return;
+    }
+    this.queuedBytes -= part.data.length;
+    this.send({
+      type: "audio",
+      sequence: this.sequence++,
+      turn_id: part.turn,
+      encoding: "pcm16",
+      sample_rate_hz: 24000,
+      channels: 1,
+      audio: Buffer.from(part.data).toString("base64"),
+    });
+    const duration = part.data.length / 48;
+    part.data.fill(0);
+    if (this.terminal) return;
+    this.pacing = setTimeout(() => {
+      this.pacing = undefined;
+      this.pumpAudio();
+    }, duration);
+    (this.pacing as unknown as { unref?: () => void }).unref?.();
+  }
   private detachAbort?: () => void;
   constructor(private readonly disconnect: () => void) {}
   open(signal: AbortSignal) {
@@ -51,23 +103,24 @@ export class RealtimeOutputStream {
         data.length > 48000
       )
         return this.fail();
-      this.send({
-        type: "audio",
-        sequence: this.sequence++,
-        turn_id: event.turn_id,
-        encoding: "pcm16",
-        sample_rate_hz: 24000,
-        channels: 1,
-        audio: Buffer.from(data).toString("base64"),
-      });
+      if (this.queuedBytes + data.length > 144000) return this.fail();
+      for (let at = 0; at < data.length; at += 4800) {
+        const part = data.slice(at, at + 4800);
+        this.queue.push({ turn: event.turn_id, data: part });
+        this.queuedBytes += part.length;
+      }
+      this.peakBytes = Math.max(this.peakBytes, this.queuedBytes);
+      this.pumpAudio();
     } else if (event.type === "state")
       this.send({ type: "state", state: event.state });
-    else if (event.type === "interruption")
+    else if (event.type === "interruption") {
+      this.clearAudio();
       this.send({
         type: "interrupted",
         turn_id: event.interruption.turn_id,
         cancel_external_effect: false,
       });
+    }
   }
   private send(event: RelayOutput) {
     if (!this.controller || this.terminal) return;
@@ -78,6 +131,7 @@ export class RealtimeOutputStream {
   private fail() {
     if (this.terminal) return;
     this.terminal = true;
+    this.clearAudio();
     this.detachAbort?.();
     try {
       this.controller?.error(new Error("OUTPUT_DISCONNECTED_OR_OVERFLOW"));
@@ -92,6 +146,7 @@ export class RealtimeOutputStream {
       ...(failureCode ? { failure_code: failureCode } : {}),
     });
     this.terminal = true;
+    this.clearAudio();
     this.detachAbort?.();
     try {
       this.controller?.close();

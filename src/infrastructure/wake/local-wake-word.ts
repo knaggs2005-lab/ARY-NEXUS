@@ -118,6 +118,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
       started = 0,
       last = -Infinity;
     let serial = Promise.resolve();
+    let inference: Promise<void> | undefined;
     const ring = new Float32Array(config.verificationAudio ? 48000 : 0);
     let ringAt = 0,
       ringCount = 0;
@@ -129,12 +130,15 @@ export class LocalWakeWordProvider implements WakeWordProvider {
     const id = crypto.randomUUID();
     const release = async () => {
       epoch++;
+      pending.fill(0);
       pending = new Int16Array(0);
       const s = session;
       session = undefined;
       await s?.stop();
+      await inference; // bounded inference finishes before reset/close of the same engine
     };
     const fail = () => {
+      if (state === "STOPPED" || state === "FAILED") return;
       clearRing();
       state = "FAILED";
       void release();
@@ -201,7 +205,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
             pending = new Int16Array(0);
             busy = true;
             let deadline: ReturnType<typeof setTimeout>;
-            void Promise.race([
+            inference = Promise.race([
               engine.process(block),
               new Promise<number>((_, reject) => {
                 deadline = setTimeout(
@@ -236,7 +240,9 @@ export class LocalWakeWordProvider implements WakeWordProvider {
                   }),
                 );
               })
-              .catch(fail)
+              .catch(() => {
+                if (generation === epoch && state === "LISTENING") fail();
+              })
               .finally(() => {
                 clearTimeout(deadline!);
                 busy = false;
@@ -284,6 +290,7 @@ export class LocalWakeWordProvider implements WakeWordProvider {
         return sample;
       },
       pause: () => {
+        if (state === "STOPPED" || state === "FAILED") return Promise.resolve();
         state = "PAUSED";
         return (serial = serial.then(release));
       },

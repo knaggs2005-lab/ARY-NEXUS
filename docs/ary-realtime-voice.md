@@ -14,9 +14,9 @@ The existing authenticated, same-origin development relay now exposes one POST N
 
 Current `response.output_audio.delta` events carry base64 in `delta`. The adapter only emits canonical PCM after accepted session metadata confirms `audio/pcm` at 24,000 Hz. Assistant transcript events cannot enter the owner-transcript branch. Nested response usage is recognized. Realtime voice inherits `OPENAI_REALTIME_VOICE`, then existing `OPENAI_TTS_VOICE`, then Ary's existing `marin` default. Classic configuration is unchanged.
 
-A dedicated output AudioContext uses the system output rate. Each source buffer is correctly tagged 24 kHz for browser resampling; it never shares the microphone context. Ordered scheduling has a 1,000 ms queued-audio cap and reports chunk/byte counts, underruns, queued duration and first scheduled-audio latency. Oversized/faster-than-playback bursts fail visibly; sustained natural speech and device latency remain physical gates. No output device was opened during tests.
+A dedicated output AudioContext uses the system output rate. Each source buffer is correctly tagged 24 kHz for browser resampling; it never shares the microphone context. Ordered scheduling has a 1,000 ms queued-audio cap and reports chunk/byte counts, underruns, queued duration and first scheduled-audio latency. Stage 2L adds bounded server pacing and short canonical speech fragments to absorb provider bursts while preserving this client cap. Excess beyond the explicit server bound still fails visibly. Sustained natural speech and device latency remain physical gates. No output device was opened during tests.
 
-Validation: 1,640 tests / 100 files passed, typecheck and isolated production build passed. A bounded live output request returned 5 chunks / 86,400 bytes, verified PCM16 mono 24 kHz, first chunk at 640 ms. This measures provider reception, not audible latency or physical playback. The `/mic-test` button START VOICE WITH PLAYBACK requires an owner gesture and discloses microphone upload and speakers.
+Validation: 1,640 tests / 100 files passed, typecheck and isolated production build passed. A bounded live output request returned 5 chunks / 86,400 bytes, verified PCM16 mono 24 kHz, first chunk at 640 ms. This measures provider reception, not audible latency or physical playback. The `/mic-test` button START ARY BRAIN VOICE + PLAYBACK requires an owner gesture and discloses microphone upload and speakers.
 
 Protocol references: [OpenAI client events](https://platform.openai.com/docs/api-reference/realtime-client-events/conversation/item/create), [OpenAI server events](https://platform.openai.com/docs/api-reference/realtime-server-events/input_audio_buffer/committed). Only current non-beta event names are used for new output handling.
 
@@ -95,3 +95,112 @@ Stage 2K validation: 92 focused tests and 1,668 full tests / 104 files passed;
 TypeScript and isolated production build passed. Formatting reports only the four
 unchanged pre-existing warnings in calls-panel, permissions, twilio-phone and
 phone-service. `git diff --check` passed. No physical devices used.
+
+## Stage 2L — final scoped review
+
+IMPLEMENTED / SYNTHETICALLY VERIFIED / LIVE PROVIDER AND PACED OUTPUT VERIFIED.
+Physical acceptance is still pending. Nothing was deployed and no physical device
+or owner biometric sample was accessed.
+
+The final live output check exposed a real problem with direct delivery: even a
+short canonical greeting arrived faster than playback and exceeded the one-second
+client buffer (1,734 ms of unpaced audio). Fixed by pacing transient PCM in at most
+100 ms deliveries, with a separate 144,000-byte / three-second maximum server
+prefetch queue. The first frame is delivered immediately; this is not a three-second
+startup delay. Interruption drops both server prefetch and scheduled client audio.
+Unread NDJSON still has a 96 KB bound. No audio is retained after delivery/end.
+
+A small RealtimeSpeechQueue renders canonical text in word-preserving fragments
+(target 24 characters; one word may be up to 40 characters). Each waits for provider
+completion and paced delivery before the next. No second reasoning pass, replay or
+tool authority. Very long unpronounceable tokens fail visibly instead of being
+silently omitted. A 15-second per-fragment limit and the relay's hard TTL bound the
+operation. This favors correct order and bounded buffers over seamless prosody;
+pauses between fragments, voice consistency, echo and end-user latency need owner
+acceptance. It is not certified continuous natural conversation.
+
+Fresh real diagnostic after the pacing fix: 7 provider chunks / 127,200 bytes,
+PCM16 mono 24 kHz, first provider audio at 582 ms. All bytes passed through the real
+output-stream/client/playback scheduling code with a silent timing-only AudioContext
+double. Final playback queue: 13 ms; peak server queue: 112,800 bytes. Unpaced virtual
+queue would have reached 2,443 ms. **No speaker was opened; no audible latency or
+speech quality is claimed.** The fixed diagnostic phrase is synthetic, not owner
+speech, and this does not prove a real Brain/provider spoken conversation.
+
+Other corrections: bounded output HTTP readiness, fail-closed incomplete provider
+responses, bounded direct PCM appends, truthful configured adapter availability
+(separate from live evidence), zeroing rejected/late biometric samples, fenced late
+wake inference/startup, ordered final-turn cancellation and shutdown cleanup. The
+original Brain, permissions/actions/approval logic, providers' model choices,
+telephony, external integrations and schemas were not redesigned.
+
+### Validation and performance
+
+- `npm test`: **1,677 passed / 105 files**, including classic voice and existing action,
+  memory, security and recovery coverage. Synthetic full runtime and isolated actual
+  AryBrainService memory/message tests pass; the latter uses the existing development
+  model for deterministic fixtures, not a real production reasoning response.
+- `npm run typecheck`: **PASS**.
+- `npm run build`: **PASS**, using an isolated source copy to preserve the running
+  development server's `.next` output.
+- Production HTTP acceptance: `/mic-test` **404**, cross-origin Realtime POST **403**.
+  Built public JavaScript contained no server OpenAI/Hermes credential symbols.
+- `npm run test:realtime-live`: **PASS** through SESSION_UPDATED and clean close.
+- REAL_RELAY: **PASS**, 15 synthetic silence frames / 14,400 bytes / closed.
+- `npm run format:check`: **nonzero for the same four baseline warnings only**:
+  calls-panel.tsx, domain/permissions.ts, twilio-phone.ts, phone-service.ts. Left untouched.
+- `git diff --check`: **PASS**.
+
+`npx tsx scripts/profile-realtime-voice.ts` is entirely synthetic, without devices or
+network. One measured run: in-process relay append mean 0.006 ms; final transcript to
+fake Brain 0.169 ms; output stream/client scheduling overhead 0.660 ms; interruption
+to cleared queue 0.176 ms. These exclude HTTP/provider/OS/device latency and are not
+real speech performance. Input batch maximum wait remains 300 ms; client capture cap
+600 ms; client playback cap 1,000 ms. Real wake idle CPU/accuracy cannot be measured
+without the missing model/runtime. Existing constraints request browser echo
+cancellation, not a guarantee of echo rejection.
+
+### Security/privacy conclusion
+
+Server-only provider credential construction is preserved. Owner/session/conversation
+checks and same-origin writes remain required; production relay/harness routes remain
+disabled. Realtime has no tools and cannot approve, cancel an executed external effect,
+or alter canonical memory outside the existing Brain path. Audio/base64 is transient,
+not in logs, audit records, files or memory. Biometric templates are local encrypted
+IndexedDB records, separate from semantic embeddings, never uploaded. Wake audio is
+local only and defaults disabled. Speaker matching is replayable convenience evidence,
+never action authorization. Existing action permissions, approval decisions and
+side-effect idempotency remain in force. Review was scoped code/tests/bundle validation,
+not a claim of a complete independent penetration test.
+
+## Morning owner acceptance
+
+Start the normal app with `npm run dev` if needed. Sign in at
+`http://127.0.0.1:3000/`, then open `http://127.0.0.1:3000/mic-test`.
+Nothing starts automatically.
+
+1. **Playback:** Load/select an existing test conversation. While present, click
+   **START ARY BRAIN VOICE + PLAYBACK**. This sends microphone audio to OpenAI and
+   permits speaker playback. Ask for a brief greeting. Confirm actual Ary speech,
+   a stable voice, rising audio counters and no failure; assess fragment pauses.
+2. **Interruption/end:** While Ary speaks, start speaking. Check prompt stopping of
+   queued speech, continued capture and an answer to the new turn. Say **Ary, stop**.
+   Confirm CLOSED/STOPPED, microphone false, cleanup true and counters no longer rise.
+3. **Canonical continuity/approval:** In a fresh explicit voice start, say “Remember
+   that my voice acceptance preference is concise answers.” Stop, then ask in normal
+   text Chat what that preference is. Inspect evidence. For actions, request an
+   internal test task; inspect and manually approve it through existing UI only when
+   intended. Confirm real task/action history; voice must not approve itself.
+4. **Wake gate:** **Check local wake assets — no microphone** currently reports the
+   setup requirement. A licensed custom Hey Ary model plus tested inference factory
+   must first be packaged; setting a flag alone is insufficient. After setup, enable
+   wake explicitly and test local detection, false positives and sleep/reacquire.
+5. **Owner gate/full flow:** Local speaker model/calibration must first be installed.
+   Only then, while present, load owner voice controls, consent and enroll locally.
+   Test match/reject/delete/re-enroll. Verify full wake → owner gate → Brain voice →
+   interruption → end → wake resume. No financial or communication action is part of
+   acceptance. Until these setup gates are complete, this test is BLOCKED.
+
+Overall **HEY ARY: NOT READY**. Implemented voice/relay/Brain lifecycle is tested;
+production local recognition, calibrated owner verification, physical playback and
+full conversational acceptance are not complete. No unrelated milestone was started.

@@ -15,3 +15,17 @@ Existing WakeWordService/VoiceActivationService remain authoritative. WakeWordSe
 The local provider reuses BrowserAudioCaptureProvider and the sole microphoneLease. Pause stops capture and releases ownership; resume reacquires. It feeds 16 kHz / 1,280-sample blocks to the local engine, with a bounded in-flight inference operation, 1.5-second startup suppression, 0.8 provisional confidence threshold, cooldown and fail-closed errors. That provisional threshold is not calibrated owner performance. Playback suppression is applied by the existing WakeWordService. No sleeping microphone audio is sent to a server/cloud or persisted.
 
 Owner gate: install/validate licensed custom assets and package the inference factory, then explicitly enable wake and test false positives, misses, background behavior and mic handoff. Idle CPU/memory and physical accuracy remain unmeasured without the real engine.
+
+## Unified activation and owner verification
+
+`createHeyAryRuntime` composes existing WakeWordService, VoiceActivationService and
+an implementation of the same RealtimeVoiceActivator port using the authenticated
+relay. It never starts a parallel OpenAI connection. Wake pause releases the shared
+mic lease before active capture. Optional owner verification uses a bounded local
+three-second ring only when enabled; taking the sample clears it and verification
+zeroes it. No ring/template enters event payloads or cloud memory. Stop/late-start
+and failed inference tests verify cleanup. Normal end resumes wake; offline/page
+shutdown stops all listening. No unattended background cloud fallback is introduced.
+
+Speaker model inference and owner enrollment remain unavailable until their setup
+and physical gates are met. See [current voice acceptance](ary-realtime-voice.md).

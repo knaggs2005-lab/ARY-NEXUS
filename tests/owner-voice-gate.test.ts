@@ -87,3 +87,17 @@ it("disabled gate performs no biometric inference", async () => {
   expect((await disabled.verify(sample())).reason).toBe("DISABLED");
   expect(f.provider.embed).not.toHaveBeenCalled();
 });
+it("zeroes an enrollment sample even when consent or the local model is unavailable", async () => {
+  const f = setup(),
+    a = sample(),
+    b = sample();
+  await expect(
+    f.gate.enroll(a, { explicit: false, owner_present: false }),
+  ).rejects.toThrow();
+  f.provider.available = () => false;
+  await expect(
+    f.gate.enroll(b, { explicit: true, owner_present: true }),
+  ).rejects.toThrow("SPEAKER_MODEL_SETUP_REQUIRED");
+  expect(a.every((x) => x === 0) && b.every((x) => x === 0)).toBe(true);
+  expect(f.records.size).toBe(0);
+});

@@ -239,3 +239,72 @@ describe("barge-in without cancelling external effects", () => {
     expect(commands).toHaveLength(1);
   });
 });
+
+it("paces a real-sized 1.75-second provider burst within the client buffer and clears pending audio on interruption", async () => {
+  vi.useFakeTimers();
+  const a = audio(),
+    start = Date.now();
+  Object.defineProperty(a.context, "currentTime", {
+    get: () => (Date.now() - start) / 1000,
+  });
+  const p = new RealtimePlayback(() => a.context),
+    failed = vi.fn(),
+    server = new RealtimeOutputStream(failed);
+  await p.start();
+  const client = new RealtimeOutputClient(
+    async () => server.open(new AbortController().signal),
+    p,
+    failed,
+  );
+  await client.open("relay");
+  const emit = (n: number) =>
+    server.publish({
+      type: "assistant_audio_delta",
+      turn_id: "answer",
+      frame: frame(n),
+    });
+  emit(48000);
+  emit(36000);
+  await vi.advanceTimersByTimeAsync(1800);
+  expect(p.snapshot().audio_bytes_received).toBe(84000);
+  expect(p.snapshot().queued_audio_ms).toBeLessThan(200);
+  expect(server.metrics().peak_queued_audio_bytes).toBeLessThanOrEqual(144000);
+  expect(failed).not.toHaveBeenCalled();
+  emit(48000);
+  server.publish({
+    type: "interruption",
+    interruption: {
+      kind: "BOTH",
+      turn_id: "answer",
+      at: new Date().toISOString(),
+      cancel_external_effect: false,
+    },
+  });
+  await vi.advanceTimersByTimeAsync(1);
+  const bytes = p.snapshot().audio_bytes_received;
+  await vi.advanceTimersByTimeAsync(1200);
+  expect(p.snapshot().audio_bytes_received).toBe(bytes);
+  expect(server.metrics().queued_audio_bytes).toBe(0);
+  await client.close();
+  vi.useRealTimers();
+});
+it("bounds a stalled output HTTP response before stream readiness", async () => {
+  vi.useFakeTimers();
+  let signal: AbortSignal | null | undefined;
+  const p = new RealtimePlayback(() => audio().context);
+  const client = new RealtimeOutputClient(
+    async (_path, options) => {
+      signal = options?.signal;
+      return new Promise<Response>(() => {});
+    },
+    p,
+    vi.fn(),
+  );
+  const opening = client.open("id");
+  const rejected = expect(opening).rejects.toThrow("OUTPUT_TIMEOUT");
+  await vi.advanceTimersByTimeAsync(5000);
+  await rejected;
+  expect(signal?.aborted).toBe(true);
+  await client.close();
+  vi.useRealTimers();
+});

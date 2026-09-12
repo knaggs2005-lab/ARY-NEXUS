@@ -17,7 +17,7 @@ type OpenAIRealtimeEvent = {
     id?: string;
     audio?: { output?: { format?: { type?: string; rate?: number } } };
   };
-  response?: { id?: string; usage?: Record<string, unknown> };
+  response?: { id?: string; usage?: Record<string, unknown>; status?: string };
   item_id?: string;
   response_id?: string;
   delta?: string;
@@ -111,6 +111,8 @@ class Session implements RealtimeVoiceSession {
       this.responsePending = false;
       if (this.cancelPending && this.responseId) {
         this.cancelled.add(this.responseId);
+        if (this.cancelled.size > 64)
+          this.cancelled.delete(this.cancelled.values().next().value!);
         this.transport.send({
           type: "response.cancel",
           response_id: this.responseId,
@@ -140,7 +142,11 @@ class Session implements RealtimeVoiceSession {
       return;
     }
     if (e.type === "conversation.item.input_audio_transcription.completed") {
-      if (!e.item_id || !e.transcript || e.transcript.length > 8000) {
+      if (
+        !e.item_id ||
+        typeof e.transcript !== "string" ||
+        e.transcript.length > 8000
+      ) {
         this.emit({
           type: "failure",
           failure: {
@@ -151,6 +157,7 @@ class Session implements RealtimeVoiceSession {
         });
         return;
       }
+      if (!e.transcript.trim()) return; // provider silence/empty turn is not a user message
       this.emit({
         type: "transcript_final",
         turn_id: e.item_id,
@@ -216,7 +223,7 @@ class Session implements RealtimeVoiceSession {
       this.emit({
         type: "assistant_text_delta",
         turn_id: e.item_id ?? "unknown",
-        text: e.delta ?? "",
+        text: (e.delta ?? "").slice(0, 8000),
       });
       return;
     }
@@ -227,6 +234,18 @@ class Session implements RealtimeVoiceSession {
         this.emit({
           type: "usage",
           usage: usage((e.response?.usage ?? e.usage)!),
+        });
+      if (
+        e.response?.status &&
+        !["completed", "cancelled"].includes(e.response.status)
+      )
+        this.emit({
+          type: "failure",
+          failure: {
+            code: "SPEECH_RESPONSE_INCOMPLETE",
+            message: "Canonical speech response did not complete",
+            retryable: false,
+          },
         });
       this.emit({ type: "state", state: "IDLE" });
       return;
@@ -282,6 +301,8 @@ class Session implements RealtimeVoiceSession {
         ? frame.data
         : new Uint8Array(frame.data);
     if (bytes.byteLength === 0) throw new Error("Audio frame is empty");
+    if (bytes.byteLength > 14400 || bytes.byteLength % 2)
+      throw new Error("Audio frame exceeds PCM bound");
     const audio = Buffer.from(
       bytes.buffer,
       bytes.byteOffset,
@@ -331,7 +352,10 @@ export class OpenAIRealtimeSessionProvider implements RealtimeVoiceSessionProvid
     return capabilities;
   }
   availability() {
-    return "UNAVAILABLE" as const;
+    // Adapter configuration, not a claim of a successful live connection.
+    return this.transportFactory
+      ? ("AVAILABLE" as const)
+      : ("UNAVAILABLE" as const);
   }
   constructor(private transportFactory?: () => OpenAIRealtimeTransport) {}
   async createSession(config: RealtimeVoiceSessionConfig) {

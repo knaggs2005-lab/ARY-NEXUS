@@ -18,6 +18,7 @@ export class RealtimeBrainBridge {
     private conversationId: string,
     private publish: (event: RealtimeVoiceEvent) => void,
     private endSession?: () => void,
+    private speech?: (text: string, signal: AbortSignal) => Promise<void>,
   ) {
     if (!session.speakText) throw new Error("CANONICAL_SPEECH_UNAVAILABLE");
     this.off = session.onEvent((event) => {
@@ -124,7 +125,9 @@ export class RealtimeBrainBridge {
         this.fail("CANONICAL_SPEECH_TOO_LONG");
         return;
       }
-      this.session.speakText!(canonical);
+      clearTimeout(timer); // Brain deadline ends here; speech has its own bounded per-fragment deadline.
+      if (this.speech) await this.speech(canonical, abort.signal);
+      else this.session.speakText!(canonical);
     } catch {
       if (!abort.signal.aborted && !this.closed)
         this.fail("BRAIN_VOICE_FAILED");

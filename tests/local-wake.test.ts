@@ -123,3 +123,31 @@ it("model loader only accepts fixed local manifests and rejects absent assets", 
   );
   expect(fetcher.mock.calls[0][0]).toBe("/models/ary-wake/manifest.json");
 });
+it("opt-in verification ring is bounded, survives release only until taken, and never enters events", async () => {
+  const f = setup(),
+    s = await f.provider.start({ ...config, verificationAudio: true });
+  for (let i = 0; i < 45; i++) {
+    f.frames();
+    for (let j = 0; j < 12; j++) await Promise.resolve();
+  }
+  await s.pause();
+  const sample = s.takeVerificationAudio!();
+  expect(sample.length).toBe(48000);
+  expect(s.takeVerificationAudio!().length).toBe(0);
+  sample.fill(0);
+  await s.stop();
+  const none = await f.provider.start(config);
+  f.frames();
+  await none.pause();
+  expect(none.takeVerificationAudio!().length).toBe(0);
+  await none.stop();
+});
+it("stopped acoustic sessions cannot reacquire through pause/resume", async () => {
+  const f = setup(),
+    s = await f.provider.start(config);
+  await s.stop();
+  await s.pause();
+  await s.resume();
+  expect(s.state).toBe("STOPPED");
+  expect(f.capture.start).toHaveBeenCalledOnce();
+});

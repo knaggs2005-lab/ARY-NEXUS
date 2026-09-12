@@ -1876,3 +1876,11 @@ The [Hermes worker adapter](docs/hermes-worker.md) extends the existing Ary acti
 ### Calendar questions across accounts
 
 Ask “What is on my calendar?” to read all connected primary calendars (next seven days by default). Use “What is on my work calendar tomorrow?”, “Show my personal calendar”, or an exact connected email to narrow the read. Ary labels each account, merges event times, and reports any account it could not check. Personal/work are conservative Gmail-domain versus non-Gmail-domain selectors; ambiguous matches require an exact email. Shared and secondary calendars are not searched. Every account read uses the existing tool/permission/audit pipeline; event changes still require the reviewed Calendar form.
+
+## Current realtime voice acceptance
+
+The development-only `/mic-test` harness now supports explicit Realtime input,
+canonical Ary Brain voice and paced assistant playback. Local Hey Ary and owner
+verification still require licensed model/runtime setup and physical acceptance;
+they are not production-ready. No microphone starts automatically. See
+[the current voice architecture, privacy boundaries and morning checklist](docs/ary-realtime-voice.md).

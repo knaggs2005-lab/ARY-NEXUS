@@ -29,24 +29,31 @@ export class OwnerVoiceGate {
     };
   }
   private async embed(samples: Float32Array) {
-    if (!this.provider.localOnly || !this.provider.available())
-      throw new Error("SPEAKER_MODEL_SETUP_REQUIRED");
-    if (
-      samples.length < 16000 ||
-      samples.length > 160000 ||
-      !samples.every(Number.isFinite)
-    )
-      throw new Error("INVALID_ENROLLMENT_SAMPLE");
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
     try {
+      if (!this.provider.localOnly || !this.provider.available())
+        throw new Error("SPEAKER_MODEL_SETUP_REQUIRED");
+      if (
+        samples.length < 16000 ||
+        samples.length > 160000 ||
+        !samples.every(Number.isFinite)
+      )
+        throw new Error("INVALID_ENROLLMENT_SAMPLE");
       return await Promise.race([
-        this.provider.embed(samples, 16000),
+        this.provider.embed(samples, 16000).then((vector) => {
+          if (timedOut) vector.fill(0);
+          return vector;
+        }),
         new Promise<Float32Array>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("SPEAKER_TIMEOUT")), 5000);
+          timer = setTimeout(() => {
+            timedOut = true;
+            reject(new Error("SPEAKER_TIMEOUT"));
+          }, 5000);
         }),
       ]);
     } finally {
-      clearTimeout(timer!);
+      clearTimeout(timer);
       samples.fill(0);
     }
   }
@@ -54,8 +61,10 @@ export class OwnerVoiceGate {
     samples: Float32Array,
     consent: { explicit: boolean; owner_present: boolean },
   ) {
-    if (!consent.explicit || !consent.owner_present)
+    if (!consent.explicit || !consent.owner_present) {
+      samples.fill(0);
       throw new Error("OWNER_PRESENCE_AND_CONSENT_REQUIRED");
+    }
     const vector = await this.embed(samples);
     try {
       const template = speakerTemplate.parse({

@@ -57,6 +57,7 @@ function fixture(owner = true) {
           data: new Uint8Array(960),
         },
       });
+      emit({ type: "state", state: "IDLE" });
     }),
     interrupt: vi.fn(() =>
       emit({
@@ -228,10 +229,14 @@ describe("unified lifecycle, synthetic devices and provider only", () => {
     });
     await tick();
     expect(f.brain.respond).toHaveBeenCalledOnce();
-    expect(f.session.speakText).toHaveBeenCalledWith(
-      "I need your approval for that.",
-    );
-    expect(f.runtime.snapshot().playback.audio_chunks_received).toBe(1);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(
+      vi
+        .mocked(f.session.speakText!)
+        .mock.calls.map((call) => call[0])
+        .join(" "),
+    ).toBe("I need your approval for that.");
+    expect(f.runtime.snapshot().playback.audio_chunks_received).toBe(2);
     f.emit({ type: "speech_start", turn_id: "two" });
     await tick();
     expect(f.nodes[0].stop).toHaveBeenCalledOnce();

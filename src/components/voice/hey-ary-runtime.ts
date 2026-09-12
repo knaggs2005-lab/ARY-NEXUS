@@ -34,6 +34,7 @@ export function createHeyAryRuntime(options: {
     (playing) => {
       wake.setPlaybackActive(playing);
       if (playing) change("SPEAKING");
+      else if (status === "SPEAKING") change("LISTENING");
     },
   );
   const activator = new RelayVoiceActivator(() => {
@@ -45,7 +46,10 @@ export function createHeyAryRuntime(options: {
       (event) => {
         if (event.type === "closed") void client.remoteEnd(event.failure_code);
         if (event.type === "interrupted") change("INTERRUPTED");
-        if (event.type === "state")
+        if (
+          event.type === "state" &&
+          !(event.state === "IDLE" && playback.snapshot().state === "PLAYING")
+        )
           change(
             event.state === "PROCESSING"
               ? "THINKING"
@@ -87,38 +91,42 @@ export function createHeyAryRuntime(options: {
     );
   });
   let started = false;
+  let starting: Promise<void> | undefined;
+  let stopping: Promise<void> | undefined;
   return {
-    async start() {
-      if (started || stopped) return;
+    start(): Promise<void> {
+      if (started || stopped) return starting ?? Promise.resolve();
       started = true;
-      if (!options.enabled) {
-        change("WAKE_DISABLED");
-        return;
-      }
-      try {
-        // Must be called from an explicit owner gesture. Missing wake model never opens microphone/cloud.
-        await playback.start();
-        const health = await wake.start({
-          enabled: true,
-          phrases: ["HEY_ARY"],
-          verificationAudio: !!options.ownerGate,
-        });
-        if (stopped) {
-          await wake.stop();
-          await playback.close();
+      return (starting = (async () => {
+        if (!options.enabled) {
+          change("WAKE_DISABLED");
           return;
         }
-        change(
-          health.state === "LISTENING"
-            ? "SLEEPING — WAKE LISTENING"
-            : (health.reason ?? "WAKE_FAILED"),
-        );
-        if (health.state !== "LISTENING") await playback.close();
-      } catch {
-        change("VOICE_RUNTIME_FAILED");
-        await wake.stop();
-        await playback.close();
-      }
+        try {
+          // Must be called from an explicit owner gesture. Missing wake model never opens microphone/cloud.
+          await playback.start();
+          const health = await wake.start({
+            enabled: true,
+            phrases: ["HEY_ARY"],
+            verificationAudio: !!options.ownerGate,
+          });
+          if (stopped) {
+            await wake.stop();
+            await playback.close();
+            return;
+          }
+          change(
+            health.state === "LISTENING"
+              ? "SLEEPING — WAKE LISTENING"
+              : (health.reason ?? "WAKE_FAILED"),
+          );
+          if (health.state !== "LISTENING") await playback.close();
+        } catch {
+          change("VOICE_RUNTIME_FAILED");
+          await wake.stop();
+          await playback.close();
+        }
+      })());
     },
     snapshot: () => ({
       state: status,
@@ -128,14 +136,17 @@ export function createHeyAryRuntime(options: {
       playback: playback.snapshot(),
       degraded,
     }),
-    async stop() {
-      if (stopped) return;
+    stop(): Promise<void> {
+      if (stopping) return stopping;
       stopped = true;
       off();
-      await activation.stop();
-      await wake.stop();
-      await playback.close();
-      change("STOPPED");
+      return (stopping = (async () => {
+        await activation.stop();
+        await wake.stop();
+        await starting;
+        await playback.close();
+        change("STOPPED");
+      })());
     },
   };
 }

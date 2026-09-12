@@ -55,6 +55,7 @@ export function OwnerVoiceEnrollment({
       resolve = yes;
       reject = no;
     });
+    void finished.catch(() => {}); // start() may still be awaiting a permission prompt when aborted.
     const timer = setTimeout(() => {
       abort.abort();
       reject(new Error("LOCAL_SAMPLE_TIMEOUT"));

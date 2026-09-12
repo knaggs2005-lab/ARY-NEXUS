@@ -197,3 +197,15 @@ it("real canonical Brain persists one voice turn and extracts memory through exi
     await rm(directory, { recursive: true, force: true });
   }
 });
+it("a newer turn fences an older final transcript still waiting to enter Brain", async () => {
+  const f = fixture(async function* () {
+    yield { type: "response", message: { content: "latest" } };
+  });
+  f.emit(final("old", "old"));
+  f.emit({ type: "speech_start", turn_id: "new" });
+  f.emit(final("new", "new"));
+  await f.bridge.idle();
+  expect(f.brain.respond).toHaveBeenCalledOnce();
+  expect(f.brain.respond.mock.calls[0][0]).toMatchObject({ input: "new" });
+  f.bridge.close();
+});

@@ -1,3 +1,4 @@
+import { RealtimeSpeechQueue } from "./realtime-speech-queue";
 import { RealtimeBrainBridge } from "./realtime-brain-bridge";
 import type { AryBrainService } from "./ary-brain-service";
 import { RealtimeOutputStream } from "./realtime-output-stream";
@@ -161,6 +162,9 @@ export class RealtimeVoiceRelayService {
       if (brain) {
         this.resetInactivity(entry);
         try {
+          const speech = new RealtimeSpeechQueue(session, () =>
+            entry.output.drained(),
+          );
           entry.brain = new RealtimeBrainBridge(
             session,
             brain,
@@ -169,6 +173,7 @@ export class RealtimeVoiceRelayService {
             () => {
               void this.stop(userId, relayId).catch(() => {});
             },
+            (text, signal) => speech.speak(text, signal),
           );
         } catch (error) {
           this.detach(entry);

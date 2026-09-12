@@ -220,3 +220,20 @@ Brain. Added bounded inactivity/end cleanup, truthful output close errors, retai
 unlocked playback across wake cycles, and developer harness metadata. Synthetic full
 lifecycle and failure/recovery tests pass. Wake model/runtime and physical owner gates
 remain incomplete; no always-on cloud capture or extra tool authority was introduced.
+
+### Overnight Stage 2L — final verification and output pacing correction
+
+Live output revealed a >1-second provider burst, so delivery now uses bounded paced
+PCM and short ordered canonical speech fragments. The fixed live diagnostic passed
+127,200 bytes through the actual stream/client code with a silent timing-only
+AudioContext double; first provider audio 582 ms, final queue 13 ms. No physical
+speaker/microphone use. Fresh handshake and REAL_RELAY passed. Full regression: 1,677
+tests / 105 files, typecheck and isolated production build passed; only four unchanged
+baseline formatting warnings. Production `/mic-test` returned 404 and cross-origin
+Realtime writes 403. Server credential symbols were absent in built public JS.
+
+Local wake/speaker inference packages and owner enrollment remain explicit blockers.
+Full natural speech quality/prosody, actual Brain-provider voice round trip, echo and
+physical wake accuracy remain owner acceptance gates. No additional integrations,
+permissions or schema changes. See `docs/ary-realtime-voice.md` for current status and
+exact morning tests; older stage snapshots below/above are historical, not readiness.

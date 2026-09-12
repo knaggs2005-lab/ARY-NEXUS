@@ -20,10 +20,24 @@ export class RealtimeOutputClient {
     private readonly retainPlaybackContext = false,
   ) {}
   async open(id: string) {
-    const response = await this.request(`realtime/session/${id}/output`, {
-      method: "POST",
-      signal: this.abort.signal,
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let response: Response;
+    try {
+      response = await Promise.race([
+        this.request(`realtime/session/${id}/output`, {
+          method: "POST",
+          signal: this.abort.signal,
+        }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            this.abort.abort();
+            reject(new Error("OUTPUT_TIMEOUT"));
+          }, 5000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
     if (!response.ok || !response.body) throw new Error("OUTPUT_UNAVAILABLE");
     this.reader = response.body.getReader();
     let ready!: () => void, reject!: (error: Error) => void;
@@ -31,7 +45,7 @@ export class RealtimeOutputClient {
       ready = yes;
       reject = no;
     });
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       reject(new Error("OUTPUT_TIMEOUT"));
       this.abort.abort();
     }, 5000);
