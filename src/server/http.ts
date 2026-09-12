@@ -37,6 +37,10 @@ import { context, isDemo } from "./context";
 import { AppError, chatInput, required } from "../domain/validation";
 import { withoutEmbedding } from "../domain/models";
 import { transcriptionResponse } from "./voice-stream";
+import {
+  realtimeVoiceRelayFor,
+  type RealtimeVoiceRelayService,
+} from "../services/realtime-voice-relay-service";
 const json = (data: unknown, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 async function body(request: Request) {
@@ -60,10 +64,28 @@ async function body(request: Request) {
     throw new AppError("Invalid JSON body");
   }
 }
+async function binaryBody(request: Request, maxBytes: number) {
+  const reader = request.body?.getReader();
+  if (!reader) return new Uint8Array();
+  let size = 0;
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      throw new AppError("Realtime audio batch exceeds 4,800 bytes", 413);
+    }
+    chunks.push(value);
+  }
+  return new Uint8Array(Buffer.concat(chunks));
+}
 export async function handle(
   request: Request,
   path: string[],
   schedule?: (work: () => Promise<void>) => void,
+  dependencies?: { realtimeRelay?: RealtimeVoiceRelayService },
 ) {
   try {
     const url = new URL(request.url);
@@ -159,9 +181,70 @@ export async function handle(
       entities,
       actions,
       brain,
+      realtimeVoice,
       provider,
       embeddingModel,
     } = await context(request);
+    const realtimeRelay = () =>
+      dependencies?.realtimeRelay ??
+      realtimeVoiceRelayFor(repository.userId, realtimeVoice);
+    if (
+      route.startsWith("realtime/session") &&
+      process.env.NODE_ENV === "production"
+    )
+      throw new AppError("Realtime relay is unavailable in production", 404);
+    if (route === "realtime/session/start" && method === "POST") {
+      const input = z
+        .object({ conversation_id: z.uuid() })
+        .strict()
+        .parse(await body(request));
+      required(
+        await repository.get("conversations", input.conversation_id),
+        "Conversation",
+      );
+      return json(
+        await realtimeRelay().start(repository.userId, input.conversation_id),
+        201,
+      );
+    }
+    if (
+      path[0] === "realtime" &&
+      path[1] === "session" &&
+      path.length === 4 &&
+      path[3] === "audio" &&
+      method === "POST"
+    ) {
+      const relayId = z.uuid().parse(path[2]);
+      const audio = await binaryBody(request, 4800);
+      return json(
+        await realtimeRelay().append(repository.userId, relayId, audio),
+      );
+    }
+    if (
+      path[0] === "realtime" &&
+      path[1] === "session" &&
+      path.length === 4 &&
+      path[3] === "status" &&
+      method === "GET"
+    ) {
+      const relayId = z.uuid().parse(path[2]);
+      return json(
+        required(
+          realtimeRelay().status(repository.userId, relayId),
+          "Realtime relay",
+        ),
+      );
+    }
+    if (
+      path[0] === "realtime" &&
+      path[1] === "session" &&
+      path.length === 4 &&
+      path[3] === "stop" &&
+      method === "POST"
+    ) {
+      const relayId = z.uuid().parse(path[2]);
+      return json(await realtimeRelay().stop(repository.userId, relayId));
+    }
     if (route === "workers/hermes/diagnostics" && method === "GET") {
       if (process.env.NODE_ENV === "production")
         throw new AppError("Not found", 404);
