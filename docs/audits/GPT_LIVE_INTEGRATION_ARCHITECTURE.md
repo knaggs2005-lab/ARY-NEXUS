@@ -198,3 +198,7 @@ The owner supplied a successful 439-frame physical input/VAD/cleanup run after `
 ## Overnight Stage 2G — bounded interruption
 
 Provider response IDs now fence exact cancellation and late audio, while canonical interruption retains non-cancellation of external effects. Relay deduplicates provider speech starts; playback clears scheduled output without ending capture. Browser AEC/noise suppression enabled. Synthetic lifecycle and regression checks cover this; physical acoustic acceptance remains pending. See the consolidated voice report.
+
+## Overnight Stage 2H — local acoustic boundary
+
+Preserved wake/activation services and added fixed-path hashed model loading plus local capture/inference lifecycle. Custom openWakeWord Hey Ary assets and validated inference packaging are missing; production wake remains BLOCKED, disabled by default. Setup diagnostics and synthetic release/resume/suppression/failure tests are available; no microphone was used overnight.

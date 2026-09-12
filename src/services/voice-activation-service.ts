@@ -36,7 +36,7 @@ export class VoiceActivationService {
     private readonly conversationId: string,
   ) {
     this.offWake = wake.onEvent((event) => {
-      void this.handleWake(event.detection);
+      if (event.type === "wake.detected") void this.handleWake(event.detection);
     });
     this.offEnded = activator.onEnded((failure) => {
       void this.end(failure);

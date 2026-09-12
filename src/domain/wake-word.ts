@@ -23,10 +23,12 @@ export interface WakeWordDetection {
   readonly providerId: string;
   readonly sessionId: string;
 }
-export interface WakeWordEvent {
-  readonly type: "wake.detected";
-  readonly detection: WakeWordDetection;
-}
+export type WakeWordEvent =
+  | { type: "wake.failed"; code: string }
+  | {
+      readonly type: "wake.detected";
+      readonly detection: WakeWordDetection;
+    };
 export interface WakeWordHealth {
   readonly state: WakeWordState;
   readonly providerId: string;

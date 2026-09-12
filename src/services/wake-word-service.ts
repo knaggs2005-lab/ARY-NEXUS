@@ -1,6 +1,4 @@
-import { randomUUID } from "node:crypto";
-import type { Repository } from "../domain/repository";
-import { NexusEventBus } from "./nexus-event-bus";
+import type { EventDraft } from "../domain/nexus-events";
 import type {
   WakeWordConfig,
   WakeWordDetection,
@@ -31,7 +29,7 @@ export class WakeWordService {
   }
   constructor(
     private readonly provider: WakeWordProvider,
-    private readonly repository?: Repository,
+    private readonly recordEvent?: (event: EventDraft) => Promise<unknown>,
   ) {}
   health(): WakeWordHealth {
     return this.healthState;
@@ -110,6 +108,18 @@ export class WakeWordService {
     await this.emit("wake.listener.stopped", {});
   }
   private async handle(event: WakeWordEvent, cooldown: number) {
+    if (event.type === "wake.failed") {
+      this.healthState = {
+        ...this.healthState,
+        state: "FAILED",
+        microphoneActive: false,
+        reason: event.code,
+      };
+      this.listeners.forEach((listener) => listener(event));
+      return;
+    }
+    if (!["LISTENING", "WAKE_DETECTED"].includes(this.healthState.state))
+      return;
     const now = Date.now();
     if (this.playback || now - this.lastDetection < cooldown) return;
     this.lastDetection = now;
@@ -125,8 +135,8 @@ export class WakeWordService {
     type: `wake.${string}`,
     payload: { label?: string; reason_code?: string },
   ) {
-    if (!this.repository) return;
-    await new NexusEventBus(this.repository).record({
+    if (!this.recordEvent) return;
+    await this.recordEvent({
       type,
       source: { kind: "backend", name: "wake-word-service" },
       severity: type.endsWith("failed") ? "warning" : "info",
@@ -141,7 +151,7 @@ export class DevelopmentWakeWordProvider implements WakeWordProvider {
   async start(_config: WakeWordConfig): Promise<WakeWordSession> {
     const listeners = new Set<(e: WakeWordEvent) => void>();
     let state: WakeWordState = "LISTENING";
-    const id = randomUUID();
+    const id = crypto.randomUUID();
     return {
       id,
       get state() {
