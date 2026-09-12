@@ -29,3 +29,15 @@ Focused interruption/output/capture tests passed. Full regression: 1,641 tests /
 ## Stage 2H — local wake boundary
 
 PARTIAL / SYNTHETIC LIFECYCLE VERIFIED / WAKE_MODEL_OWNER_SETUP_REQUIRED. Selected openWakeWord-compatible local ONNX boundary; custom Hey Ary model and tested engine packaging are missing. Exact asset/hash loading, shared-mic release/reacquire, startup/cooldown/playback suppression, engine failures and disabled-default configuration are implemented. No model was fabricated or installed under unsuitable licensing. The setup panel is explicit about the missing inference factory. No acoustic accuracy or idle resource claim. See [wake setup](wake-word.md).
+
+## Stage 2I — Owner Voice Gate
+
+INTERFACES / ENCRYPTED LOCAL STORAGE / SYNTHETIC VERIFICATION IMPLEMENTED. SPEAKER_MODEL_SETUP_REQUIRED and OWNER_VOICE_ENROLLMENT_REQUIRED.
+
+Evaluated [WeSpeaker ONNX](https://github.com/wenet-e2e/wespeaker/blob/master/docs/pretrained.md); model licensing follows its training dataset, so no unreviewed model/frontend or calibrated threshold is claimed. The concrete local provider reports unavailable. No biometric sample or template from the owner was collected overnight.
+
+OwnerVoiceGate verifies version/model hash/dimensions and rejects missing/corrupt/mismatched/low-confidence enrollment. A match explicitly carries `authorizes_actions:false` and `replay_resistant:false`: a recording may fool speaker verification; device security and canonical approvals remain required. The provisional 0.85 cosine threshold is not a measured operating point. Optional per-turn verification is not enabled.
+
+Templates are derived vectors only, encrypted with AES-GCM in a separate per-owner IndexedDB record using a non-exportable CryptoKey and owner-bound authenticated data. Re-enrollment rotates that key; deletion removes key and ciphertext together. No template is uploaded, logged, or inserted into memory/pgvector. This protects disk representation, not a compromised same-origin application or browser profile; it is not hardware-backed Keychain assurance. The existing server integration vault was not reused because doing so would move local biometric material through an HTTP path.
+
+`/mic-test` → Owner Voice Gate offers explicit consent, local three-second enrollment/verification, Stop and Delete controls. Enrollment/verification stay disabled while the provider is unavailable. Authenticated local config supplies the existing owner ID; no identity is invented. Synthetic encrypted-store tests passed; no unattended microphone was activated.

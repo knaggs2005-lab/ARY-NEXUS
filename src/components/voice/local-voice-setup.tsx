@@ -1,4 +1,5 @@
 "use client";
+import { OwnerVoiceEnrollment } from "./owner-voice-enrollment";
 import { useState } from "react";
 import { loadWakeAssets } from "../../infrastructure/wake/local-wake-word";
 export function LocalVoiceSetup({ wakeEnabled }: { wakeEnabled: boolean }) {
@@ -35,6 +36,7 @@ export function LocalVoiceSetup({ wakeEnabled }: { wakeEnabled: boolean }) {
       <button disabled>
         Start local wake test — model/runtime setup required
       </button>
+      <OwnerVoiceEnrollment />
     </section>
   );
 }

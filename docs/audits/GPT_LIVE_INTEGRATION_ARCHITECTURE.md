@@ -202,3 +202,7 @@ Provider response IDs now fence exact cancellation and late audio, while canonic
 ## Overnight Stage 2H — local acoustic boundary
 
 Preserved wake/activation services and added fixed-path hashed model loading plus local capture/inference lifecycle. Custom openWakeWord Hey Ary assets and validated inference packaging are missing; production wake remains BLOCKED, disabled by default. Setup diagnostics and synthetic release/resume/suppression/failure tests are available; no microphone was used overnight.
+
+## Overnight Stage 2I — local owner verification boundary
+
+Added optional OwnerVoiceGate, local-only SpeakerVerificationProvider, owner-scoped encrypted template storage and explicit enrollment/delete controls. No owner biometric template was created. WeSpeaker model/frontend/license/calibration remain setup gates. Verification never grants action authority and is explicitly not replay-resistant. Tests cover encryption, owner isolation, version drift, deletion/re-enrollment and fail-closed decisions.

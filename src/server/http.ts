@@ -189,6 +189,15 @@ export async function handle(
     const realtimeRelay = () =>
       dependencies?.realtimeRelay ??
       realtimeVoiceRelayFor(repository.userId, realtimeVoice);
+    if (route === "realtime/local-config" && method === "GET") {
+      if (process.env.NODE_ENV === "production")
+        throw new AppError("Endpoint not found", 404);
+      return json({
+        owner_id: repository.userId,
+        wake_enabled: process.env.ARY_WAKE_WORD_ENABLED === "true",
+        owner_voice_enabled: process.env.ARY_OWNER_VOICE_ENABLED === "true",
+      });
+    }
     if (
       route.startsWith("realtime/session") &&
       process.env.NODE_ENV === "production"
