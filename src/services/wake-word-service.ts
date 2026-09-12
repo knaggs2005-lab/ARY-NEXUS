@@ -22,6 +22,13 @@ export class WakeWordService {
   private lastDetection = 0;
   private unsubscribe: (() => void) | null = null;
   private playback = false;
+  private listeners = new Set<(event: WakeWordEvent) => void>();
+  onEvent(handler: (event: WakeWordEvent) => void) {
+    this.listeners.add(handler);
+    return () => {
+      this.listeners.delete(handler);
+    };
+  }
   constructor(
     private readonly provider: WakeWordProvider,
     private readonly repository?: Repository,
@@ -107,6 +114,7 @@ export class WakeWordService {
     if (this.playback || now - this.lastDetection < cooldown) return;
     this.lastDetection = now;
     this.healthState = { ...this.healthState, state: "WAKE_DETECTED" };
+    this.listeners.forEach((listener) => listener(event));
     await this.emit("wake.detected", { label: event.detection.wakePhrase });
     setTimeout(() => {
       if (this.healthState.state === "WAKE_DETECTED")
