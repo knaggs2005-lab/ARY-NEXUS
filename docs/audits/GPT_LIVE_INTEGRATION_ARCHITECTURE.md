@@ -102,3 +102,7 @@ Removed serialization of the Nexus-only brain-abort command, made `response.done
 ## Stage 2B — server transport
 
 Added an authenticated server-side WebSocket transport with minimal `session.update` (PCM16 mono 24 kHz, server VAD, text/audio modalities, empty tools). It is composed server-side only when `OPENAI_REALTIME_MODEL` and the existing `OPENAI_API_KEY` are present. Browser, Brain delegation, current STT/TTS, Twilio, UI, actions and memory remain disconnected.
+
+## Stage 2B.1 — runtime auth and handshake
+
+Replaced the unsupported WHATWG header overload with the server-side `ws` implementation. Readiness now requires `session.created`; a bounded timeout reports `HANDSHAKE_TIMEOUT`, and only then is minimal `session.update` sent with empty tools. Added explicit `npm run test:realtime-live`, which prints PASS/FAIL/SKIPPED and performs no audio, tools, Brain, memory, or external actions.
