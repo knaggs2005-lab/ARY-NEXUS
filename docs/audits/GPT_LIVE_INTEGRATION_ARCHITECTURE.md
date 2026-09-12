@@ -106,3 +106,7 @@ Added an authenticated server-side WebSocket transport with minimal `session.upd
 ## Stage 2B.1 — runtime auth and handshake
 
 Replaced the unsupported WHATWG header overload with the server-side `ws` implementation. Readiness now requires `session.created`; a bounded timeout reports `HANDSHAKE_TIMEOUT`, and only then is minimal `session.update` sent with empty tools. Added explicit `npm run test:realtime-live`, which prints PASS/FAIL/SKIPPED and performs no audio, tools, Brain, memory, or external actions.
+
+## Stage 2B.2 — realtime close diagnosis
+
+Live diagnostic reached OpenAI and received `error.type=invalid_request_error`, `error.code=invalid_model`, with message that model `gpt-live-1` is unsupported in realtime mode. The socket then closed with code `4000` and reason `invalid_request_error.invalid_model`. Transport diagnostics now preserve sanitized close code/reason, socket/session/update milestones, and last event; provider errors win over generic close errors. No protocol field was changed because the evidence identified the configured model as the root cause. Current local environment therefore requires an owner-selected supported realtime model; no environment value was changed by this audit.

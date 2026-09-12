@@ -4,6 +4,18 @@ type Event = { type: string; [key: string]: unknown };
 export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport {
   private socket: WebSocket | null = null;
   private closed = false;
+  private providerError: string | null = null;
+  private diagnostics = {
+    socket_opened: false,
+    session_created: false,
+    session_update_sent: false,
+    close_code: null as number | null,
+    close_reason: "",
+    last_event_type: "",
+  };
+  getDiagnostics() {
+    return { ...this.diagnostics };
+  }
   constructor(
     private apiKey: string,
     private model: string,
@@ -27,19 +39,33 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
         headers: { Authorization: `Bearer ${this.apiKey}` },
       });
       this.socket = ws;
-      ws.on("open", () => {});
+      ws.on("open", () => {
+        this.diagnostics.socket_opened = true;
+      });
       ws.on("message", (raw) => {
         let event: Event;
         try {
           event = JSON.parse(String(raw));
+          this.diagnostics.last_event_type = event.type;
         } catch {
           fail("PROTOCOL_ERROR");
           return;
         }
         onEvent(event);
+        if (event.type === "error") {
+          const err = event.error as
+            { code?: string; message?: string } | undefined;
+          this.providerError = `${err?.code ?? "PROVIDER_ERROR"}: ${String(
+            err?.message ?? "Provider rejected request",
+          )
+            .replace(/(?:Bearer|sk-)[^\s]+/gi, "[redacted]")
+            .slice(0, 240)}`;
+        }
         if (event.type === "session.created") {
+          this.diagnostics.session_created = true;
           ready = true;
           clearTimeout(timer);
+          this.diagnostics.session_update_sent = true;
           this.send({
             type: "session.update",
             session: {
@@ -65,8 +91,19 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
             },
           });
       });
-      ws.on("close", () => {
-        if (!ready) fail("CONNECTION_CLOSED");
+      ws.on("close", (code, reason) => {
+        this.diagnostics.close_code = code;
+        this.diagnostics.close_reason = String(reason)
+          .replace(/[\x00-\x1f\x7f]/g, "")
+          .slice(0, 240);
+        if (!ready)
+          fail(
+            this.providerError
+              ? this.providerError.startsWith("invalid_model")
+                ? `MODEL_UNAVAILABLE ${this.providerError}`
+                : `PROVIDER_UNAVAILABLE ${this.providerError}`
+              : `CONNECTION_CLOSED code=${code} reason=${String(reason).slice(0, 240)}`,
+          );
         else onEvent({ type: "connection.closed" });
       });
     });
