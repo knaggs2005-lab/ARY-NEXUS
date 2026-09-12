@@ -62,6 +62,7 @@ class Session implements RealtimeVoiceSession {
   provider_session_id: string | null = null;
   state: RealtimeVoiceSession["state"] = "IDLE";
   private closed = false;
+  private ready = false;
   private listeners = new Set<(e: RealtimeVoiceEvent) => void>();
   constructor(
     private config: RealtimeVoiceSessionConfig,
@@ -83,6 +84,7 @@ class Session implements RealtimeVoiceSession {
     if (this.closed) return;
     if (e.type === "session.created" || e.type === "session.ready") {
       this.provider_session_id = e.session?.id ?? null;
+      this.ready = true;
       this.emit({ type: "state", state: "IDLE" });
       return;
     }
@@ -167,12 +169,14 @@ class Session implements RealtimeVoiceSession {
     }
     if (e.type === "connection.closed") {
       this.emit({ type: "state", state: "CLOSED" });
+      this.ready = false;
       this.closed = true;
       this.listeners.clear();
     }
   }
   sendAudio(frame: RealtimeVoiceAudioFrame) {
     if (this.closed) throw new Error("Realtime voice session is closed");
+    if (!this.ready) throw new Error("Realtime voice session is not ready");
     if (frame.encoding !== "pcm16" || frame.channels !== 1)
       throw new Error("Unsupported audio frame format");
     if (
@@ -183,6 +187,17 @@ class Session implements RealtimeVoiceSession {
       frame.sample_rate_hz !== 24000
     )
       throw new Error("Invalid audio frame metadata");
+    const bytes =
+      frame.data instanceof Uint8Array
+        ? frame.data
+        : new Uint8Array(frame.data);
+    if (bytes.byteLength === 0) throw new Error("Audio frame is empty");
+    const audio = Buffer.from(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength,
+    ).toString("base64");
+    this.transport.send({ type: "input_audio_buffer.append", audio });
   }
   interrupt(kind: RealtimeVoiceInterruption["kind"]) {
     if (this.closed) return;

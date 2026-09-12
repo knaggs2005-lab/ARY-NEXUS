@@ -140,3 +140,7 @@ Corrected capture cleanup with an internal abort controller, terminal/fail-once 
 ## Stage 2E-A.2 — physical microphone acceptance
 
 Added a development-only `/mic-test` route with explicit Start/Stop controls and metadata-only display. Physical acceptance requires owner interaction and remains unrun unless those controls are used on a browser/Electron runtime with microphone permission.
+
+## Stage 2E-B1 — validated realtime audio append
+
+Added the missing session-to-provider audio boundary. `RealtimeVoiceSession.sendAudio()` now requires an open, provider-ready session and validated mono PCM16 at 24 kHz, then sends only `input_audio_buffer.append` with the exact frame bytes base64 encoded. ArrayBuffer and Uint8Array views (including subarray offsets) are handled without leaking backing-buffer bytes. The session does not send `input_audio_buffer.commit` or `response.create`; server VAD remains authoritative. Focused tests cover readiness, validation, exact bytes, transport failures and protocol-command boundaries. Physical microphone wiring, Brain integration and realtime audio network acceptance remain deferred; this stage's tests send no audio over the network.
