@@ -14,7 +14,7 @@ type Tool = {
   };
   authentication: { configured: boolean };
   health: { status: string; observed_at?: string | null; reason?: string };
-  permission: { level: number; approvalRequired?: boolean };
+  permission: { level: number; approvalRequired?: boolean; mode?: string };
 };
 type Family = {
   id: string;
@@ -25,7 +25,8 @@ type Family = {
   reason: string;
   configured: boolean;
   read: boolean;
-  write: boolean;
+  write: boolean | null;
+  destination: string;
 };
 const labels: Record<string, [string, string]> = {
   openai: ["OpenAI", "AI"],
@@ -54,19 +55,23 @@ function familyFor(t: Tool) {
       : n.split(".")[0];
   return labels[key] ? [key, ...labels[key]] : [key, key, "Tools"];
 }
-function status(tools: Tool[]) {
+export function normalizeConnectionStatus(tools: Tool[]) {
+  // Deterministic precedence: BLOCKED > DEGRADED > CONNECTED > NEEDS_AUTH > NOT_LIVE > NOT_CONFIGURED > UNKNOWN.
+  if (
+    tools.some((t) =>
+      /KYC|compliance|blocked by/i.test(
+        `${t.availability.reason ?? ""} ${t.health.reason ?? ""}`,
+      ),
+    )
+  )
+    return ["BLOCKED", "The external provider requires compliance approval."];
   if (
     tools.some(
       (t) =>
         t.availability.state === "offline" || t.health.status === "degraded",
     )
   )
-    return [
-      "DEGRADED",
-      "A recent provider attempt reported a connection problem.",
-    ];
-  if (tools.some((t) => /KYC|compliance/i.test(t.availability.reason ?? "")))
-    return ["BLOCKED", "The external provider requires compliance approval."];
+    return ["DEGRADED", "A recent provider or network attempt failed."];
   if (
     tools.some(
       (t) =>
@@ -75,15 +80,80 @@ function status(tools: Tool[]) {
   )
     return [
       "CONNECTED",
-      "A recent successful invocation was observed; this is not a continuous guarantee.",
+      "Recent successful live evidence was observed; this is not a continuous guarantee.",
     ];
-  if (tools.some((t) => t.authentication.configured))
+  if (
+    tools.some(
+      (t) => t.authentication.configured === false && t.origin === "oauth",
+    )
+  )
     return [
-      "UNKNOWN",
-      "Configuration exists, but current live connectivity is unverified.",
+      "NEEDS_AUTH",
+      "Provider configuration exists but user consent/authentication is missing or expired.",
     ];
-  return ["NOT_CONFIGURED", "No usable configuration is present."];
+  if (
+    tools.some(
+      (t) =>
+        ["local_mac", "browser", "device"].includes(
+          (t as Tool & { execution_location?: string }).execution_location ??
+            "",
+        ) && t.availability.state !== "connected",
+    )
+  )
+    return [
+      "NOT_LIVE",
+      "The adapter is registered, but its local runtime is not active or verified.",
+    ];
+  if (
+    tools.every(
+      (t) =>
+        !t.authentication.configured && t.availability.state === "unconfigured",
+    )
+  )
+    return ["NOT_CONFIGURED", "Required provider configuration is missing."];
+  return [
+    "UNKNOWN",
+    "Configuration exists, but available evidence cannot establish current connectivity.",
+  ];
 }
+export const connectionDestinations: Record<string, string> = {
+  openai: "Settings",
+  embedding: "Settings",
+  voice: "Chat",
+  worker: "Tools",
+  supabase: "Settings",
+  google_calendar: "Calendar",
+  gmail: "Communications",
+  phone: "Calls",
+  desktop: "Computer & Browser",
+  browser: "Computer & Browser",
+  mcp: "Tools",
+  premiere: "Creative",
+  design: "Creative",
+  perception: "Perception",
+  studio: "Studio",
+  finance: "Finance",
+};
+export function capabilityAccess(tools: Tool[]) {
+  const readable = tools.some(
+    (t) =>
+      t.permission.mode === "observe" ||
+      /read|inspect|list|status|search|fetch|discover/i.test(t.name),
+  );
+  const mutating = tools.some(
+    (t) =>
+      t.permission.mode === "execute" ||
+      t.permission.mode === "draft" ||
+      /create|update|delete|send|write|launch|invoke|control|set|call|export|save/i.test(
+        t.name,
+      ),
+  );
+  return {
+    read: readable,
+    write: mutating ? true : tools.length ? null : false,
+  };
+}
+
 export function ConnectionsView({
   onOpen,
 }: {
@@ -106,7 +176,8 @@ export function ConnectionsView({
     }
     return [...m].map(([k, ts]) => {
       const [, name, category] = familyFor(ts[0]);
-      const [s, reason] = status(ts);
+      const [s, reason] = normalizeConnectionStatus(ts);
+      const access = capabilityAccess(ts);
       return {
         id: k,
         name,
@@ -115,8 +186,9 @@ export function ConnectionsView({
         status: s,
         reason,
         configured: ts.some((t) => t.authentication.configured),
-        read: ts.some((t) => t.permission.level > 0),
-        write: ts.some((t) => t.permission.level >= 3),
+        read: access.read,
+        write: access.write,
+        destination: connectionDestinations[k] ?? "Tools",
       };
     });
   }, [tools]);
@@ -146,10 +218,22 @@ export function ConnectionsView({
             </summary>
             <p>{f.reason}</p>
             <small>
+              {f.tools.some(
+                (t) => t.availability.checked_at || t.health.observed_at,
+              )
+                ? `Observed ${f.tools.find((t) => t.availability.checked_at || t.health.observed_at)?.availability.checked_at ?? f.tools.find((t) => t.health.observed_at)?.health.observed_at}`
+                : "Last checked: unknown"}{" "}
+              ·{" "}
+              {f.tools.some((t) => t.availability.evidence)
+                ? `Evidence: ${f.tools.find((t) => t.availability.evidence)?.availability.evidence}`
+                : "Evidence: unknown"}
+              <br />
               {f.read
-                ? f.write
+                ? f.write === true
                   ? "READ / WRITE"
-                  : "READ ONLY"
+                  : f.write === null
+                    ? "READ / WRITE UNKNOWN"
+                    : "READ ONLY"
                 : "NO READ ACCESS"}{" "}
               · {f.tools.length} registered capabilities
             </small>
@@ -164,17 +248,7 @@ export function ConnectionsView({
               ))}
             </ul>
             {onOpen && (
-              <button
-                onClick={() =>
-                  onOpen(
-                    f.category === "Google"
-                      ? f.name.includes("Gmail")
-                        ? "Communications"
-                        : "Calendar"
-                      : f.category,
-                  )
-                }
-              >
+              <button onClick={() => onOpen(f.destination)}>
                 {f.status === "NOT_CONFIGURED"
                   ? "Open setup"
                   : "Open workspace"}
