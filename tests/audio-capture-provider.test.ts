@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BrowserAudioCaptureProvider,
   Pcm16Packetizer,
+  frameMetadata,
 } from "../src/infrastructure/audio/browser-audio-capture";
 function stream() {
   const listeners = new Map<string, () => void>();

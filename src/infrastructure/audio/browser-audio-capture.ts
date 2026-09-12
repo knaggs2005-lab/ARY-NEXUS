@@ -162,6 +162,9 @@ export class BrowserAudioCaptureProvider implements AudioCaptureProvider {
       stream = await gum({
         audio: { channelCount: { exact: 1 }, sampleRate: { ideal: RATE } },
       });
+      // Acquisition is the point at which the physical microphone is active.
+      // Keep this truthful while capture setup is still completing.
+      health.microphone_active = true;
       stream
         .getTracks()
         .forEach((track) => track.addEventListener?.("ended", onTrackEnded));
