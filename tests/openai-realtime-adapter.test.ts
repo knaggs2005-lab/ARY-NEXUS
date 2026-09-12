@@ -2,65 +2,85 @@ import { describe, expect, it } from "vitest";
 import { OpenAIRealtimeSessionProvider } from "../src/infrastructure/providers/openai-realtime";
 function transport() {
   let cb: (e: any) => void = () => {};
+  const sent: any[] = [];
   return {
     connect: async (f: any) => {
       cb = f;
     },
-    send: (_x: any) => {},
+    send: (x: any) => sent.push(x),
     close: async () => {},
     emit: (e: any) => cb(e),
+    sent,
   };
 }
-describe("OpenAI realtime adapter skeleton", () => {
-  it("declares capabilities and no default availability", () => {
-    const p = new OpenAIRealtimeSessionProvider();
-    expect(p.capabilities()).toContain("interruptions");
-    expect(p.availability()).toBe("UNAVAILABLE");
-  });
-  it("translates events and preserves IDs", async () => {
+const config = {
+  user_id: "u",
+  conversation_id: "c",
+  classic_fallback_available: true,
+};
+describe("OpenAI realtime adapter correction", () => {
+  it("does not advertise reconnect", () =>
+    expect(new OpenAIRealtimeSessionProvider().capabilities()).not.toContain(
+      "reconnect",
+    ));
+  it("ABORT only emits canonical interruption", async () => {
     const t = transport();
-    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession({
-      user_id: "u",
-      conversation_id: "c",
-      classic_fallback_available: true,
-    });
+    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
+      config,
+    );
     const e: any[] = [];
     s.onEvent((x) => e.push(x));
-    t.emit({ type: "session.created", session: { id: "p" } });
-    t.emit({ type: "input_audio_buffer.speech_started", item_id: "t" });
-    t.emit({ type: "response.text.delta", item_id: "t", delta: "hi" });
-    expect(s.nexus_conversation_id).toBe("c");
-    expect(e.map((x) => x.type)).toContain("speech_start");
-    expect(e.map((x) => x.type)).toContain("assistant_text_delta");
+    s.interrupt("ABORT_BRAIN_REQUEST");
+    expect(t.sent).toEqual([]);
+    expect(e.some((x) => x.type === "interruption")).toBe(true);
   });
-  it("maps interruption without external cancellation", async () => {
+  it("BOTH sends only provider cancellation", async () => {
     const t = transport();
-    const sent: any[] = [];
-    t.send = (x: any) => {
-      sent.push(x);
-    };
-    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession({
-      user_id: "u",
-      conversation_id: "c",
-      classic_fallback_available: true,
-    });
-    const e: any[] = [];
-    s.onEvent((x) => e.push(x));
+    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
+      config,
+    );
     s.interrupt("BOTH");
-    expect(sent.map((x) => x.type)).toContain("response.cancel");
-    expect(
-      e.find((x) => x.type === "interruption").interruption
-        .cancel_external_effect,
-    ).toBe(false);
+    expect(t.sent).toEqual([{ type: "response.cancel" }]);
   });
-  it("close is idempotent", async () => {
+  it("response.done returns idle with or without usage", async () => {
     const t = transport();
-    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession({
-      user_id: "u",
-      conversation_id: "c",
-      classic_fallback_available: true,
-    });
+    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
+      config,
+    );
+    const e: any[] = [];
+    s.onEvent((x) => e.push(x));
+    t.emit({ type: "response.done" });
+    expect(e.at(-1)).toEqual({ type: "state", state: "IDLE" });
+    t.emit({ type: "response.done", usage: { input_tokens: 2 } });
+    expect(e.at(-2).type).toBe("usage");
+    expect(e.at(-1).state).toBe("IDLE");
+  });
+  it("remote close prevents send and interrupt and local close is idempotent", async () => {
+    const t = transport();
+    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
+      config,
+    );
+    t.emit({ type: "connection.closed" });
+    expect(() =>
+      s.sendAudio({
+        encoding: "pcm",
+        sample_rate_hz: 16000,
+        channels: 1,
+        data: new Uint8Array(),
+      }),
+    ).toThrow();
+    s.interrupt("BOTH");
     await s.close();
     await s.close();
+    expect(t.sent).toEqual([]);
+  });
+  it("provider and Nexus IDs remain distinct", async () => {
+    const t = transport();
+    const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
+      config,
+    );
+    t.emit({ type: "session.ready", session: { id: "provider" } });
+    expect(s.nexus_conversation_id).toBe("c");
+    expect(s.provider_session_id).toBe("provider");
   });
 });

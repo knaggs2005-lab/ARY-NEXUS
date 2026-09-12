@@ -36,7 +36,6 @@ const capabilities = [
   "interruptions",
   "transcript_deltas",
   "audio_deltas",
-  "reconnect",
   "usage_metadata",
 ] as const satisfies readonly RealtimeVoiceCapability[];
 function failure(error: OpenAIRealtimeEvent["error"]): RealtimeVoiceFailure {
@@ -156,8 +155,8 @@ class Session implements RealtimeVoiceSession {
       });
       return;
     }
-    if (e.type === "response.done" && e.usage) {
-      this.emit({ type: "usage", usage: usage(e.usage) });
+    if (e.type === "response.done") {
+      if (e.usage) this.emit({ type: "usage", usage: usage(e.usage) });
       this.emit({ type: "state", state: "IDLE" });
       return;
     }
@@ -168,6 +167,8 @@ class Session implements RealtimeVoiceSession {
     }
     if (e.type === "connection.closed") {
       this.emit({ type: "state", state: "CLOSED" });
+      this.closed = true;
+      this.listeners.clear();
     }
   }
   sendAudio(frame: RealtimeVoiceAudioFrame) {
@@ -190,8 +191,6 @@ class Session implements RealtimeVoiceSession {
     });
     if (kind === "STOP_AUDIO" || kind === "BOTH")
       this.transport.send({ type: "response.cancel" });
-    if (kind === "ABORT_BRAIN_REQUEST" || kind === "BOTH")
-      this.transport.send({ type: "nexus.brain.abort" });
     this.emit({ type: "interruption", interruption: i });
     this.emit({ type: "state", state: "INTERRUPTED" });
   }

@@ -94,3 +94,7 @@ Added `src/domain/realtime-voice.ts` with provider-agnostic session, turn, event
 ## Stage 2A — offline OpenAI adapter skeleton
 
 Added `src/infrastructure/providers/openai-realtime.ts`. It contains an injected fake transport boundary, OpenAI-specific event translation kept inside infrastructure, canonical state/transcript/audio/interruption/usage/failure mapping, ID separation, validation, and idempotent cleanup. The provider reports unavailable unless an injected transport is supplied. No network, credentials, sockets, UI, Brain, actions, permissions, Twilio, or fallback behavior were added.
+
+## Stage 2A.1 correction
+
+Removed serialization of the Nexus-only brain-abort command, made `response.done` always return the canonical session to `IDLE`, made remote connection closure terminal and idempotent, and removed the unimplemented reconnect capability. Focused adapter tests cover these boundaries. No network or provider call was introduced.
