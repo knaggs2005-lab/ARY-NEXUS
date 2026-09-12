@@ -110,3 +110,7 @@ Replaced the unsupported WHATWG header overload with the server-side `ws` implem
 ## Stage 2B.2 — realtime close diagnosis
 
 Live diagnostic reached OpenAI and received `error.type=invalid_request_error`, `error.code=invalid_model`, with message that model `gpt-live-1` is unsupported in realtime mode. The socket then closed with code `4000` and reason `invalid_request_error.invalid_model`. Transport diagnostics now preserve sanitized close code/reason, socket/session/update milestones, and last event; provider errors win over generic close errors. No protocol field was changed because the evidence identified the configured model as the root cause. Current local environment therefore requires an owner-selected supported realtime model; no environment value was changed by this audit.
+
+## Stage 2C — local wake-word layer
+
+Added provider-agnostic local wake-word contracts and `WakeWordService` lifecycle boundary. Detection is disabled by default, local-only, bounded to phrase metadata, debounced, and suppressible during playback. The development provider is a lifecycle stub and makes no production recognition claim. Realtime session wiring and automatic Brain startup remain deferred to Stage 2D.
