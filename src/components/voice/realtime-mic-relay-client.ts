@@ -95,16 +95,16 @@ export class RealtimeMicRelayClient {
     };
   }
 
-  start(conversationId: string): Promise<void> {
+  start(conversationId: string, brain = false): Promise<void> {
     if (this.used) return this.starting ?? Promise.resolve();
     this.used = true;
     this.startedAt = Date.now();
     this.health.client_capture_state = "STARTING";
-    this.starting = this.begin(conversationId);
+    this.starting = this.begin(conversationId, brain);
     return this.starting;
   }
 
-  private async begin(conversationId: string) {
+  private async begin(conversationId: string, brain: boolean) {
     try {
       if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(conversationId))
         throw new Error("CONVERSATION_REQUIRED");
@@ -112,7 +112,10 @@ export class RealtimeMicRelayClient {
         "realtime/session/start",
         {
           method: "POST",
-          body: JSON.stringify({ conversation_id: conversationId }),
+          body: JSON.stringify({
+            conversation_id: conversationId,
+            ...(brain ? { brain: true } : {}),
+          }),
           keepalive: true,
         },
         15000,

@@ -102,7 +102,7 @@ export function RealtimeMicTest() {
       output,
     );
     client.current = next;
-    const starting = next.start(conversation);
+    const starting = next.start(conversation, withPlayback);
     setHealth(next.snapshot());
     await starting;
     if (synthetic && emit) {
@@ -193,7 +193,7 @@ export function RealtimeMicTest() {
         onClick={() => void start(false, true)}
         disabled={!!busy || !conversation}
       >
-        START VOICE WITH PLAYBACK
+        START ARY BRAIN VOICE + PLAYBACK
       </button>
       <p>
         Playback test uses your speakers and sends microphone audio to OpenAI.

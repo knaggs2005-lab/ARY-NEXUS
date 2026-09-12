@@ -218,7 +218,7 @@ export async function handle(
     }
     if (route === "realtime/session/start" && method === "POST") {
       const input = z
-        .object({ conversation_id: z.uuid() })
+        .object({ conversation_id: z.uuid(), brain: z.boolean().optional() })
         .strict()
         .parse(await body(request));
       required(
@@ -226,7 +226,11 @@ export async function handle(
         "Conversation",
       );
       return json(
-        await realtimeRelay().start(repository.userId, input.conversation_id),
+        await realtimeRelay().start(
+          repository.userId,
+          input.conversation_id,
+          input.brain ? brain : undefined,
+        ),
         201,
       );
     }

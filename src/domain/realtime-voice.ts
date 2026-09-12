@@ -93,6 +93,8 @@ export interface RealtimeVoiceSession {
   readonly provider_session_id?: string | null;
   readonly state: RealtimeVoiceSessionState;
   sendAudio(frame: RealtimeVoiceAudioFrame): void;
+  /** Speak canonical Nexus text; not a tool or reasoning interface. */
+  speakText?(text: string): void;
   interrupt(kind: RealtimeVoiceInterruptionKind): void;
   close(): Promise<void>;
   onEvent(handler: (event: RealtimeVoiceEvent) => void): () => void;

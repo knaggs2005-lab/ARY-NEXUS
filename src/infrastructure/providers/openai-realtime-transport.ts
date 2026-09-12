@@ -91,7 +91,16 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
                 audio: {
                   input: {
                     format: { type: "audio/pcm", rate: 24000 },
-                    turn_detection: { type: "server_vad" },
+                    turn_detection: {
+                      type: "server_vad",
+                      create_response: false,
+                      interrupt_response: false,
+                    },
+                    transcription: {
+                      model:
+                        process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ||
+                        "gpt-4o-mini-transcribe",
+                    },
                   },
                   output: {
                     format: { type: "audio/pcm", rate: 24000 },

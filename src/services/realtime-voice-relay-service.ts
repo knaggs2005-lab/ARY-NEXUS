@@ -1,3 +1,5 @@
+import { RealtimeBrainBridge } from "./realtime-brain-bridge";
+import type { AryBrainService } from "./ary-brain-service";
 import { RealtimeOutputStream } from "./realtime-output-stream";
 import type {
   RealtimeVoiceAudioFrame,
@@ -59,6 +61,7 @@ type RelayEntry = {
   finalized: boolean;
   output: RealtimeOutputStream;
   speechTurns: Set<string>;
+  brain?: RealtimeBrainBridge;
   close_promise: Promise<void> | null;
 };
 
@@ -92,6 +95,7 @@ export class RealtimeVoiceRelayService {
   async start(
     userId: string,
     conversationId: string,
+    brain?: Pick<AryBrainService, "respond">,
   ): Promise<RealtimeRelayStart> {
     if (!userId.trim())
       throw new AppError("Authenticated user is required", 401);
@@ -145,6 +149,23 @@ export class RealtimeVoiceRelayService {
       entry.expiry_timer = this.scheduleExpiry(relayId);
       this.entries.set(relayId, entry);
       this.activeByUser.set(userId, relayId);
+      if (brain) {
+        try {
+          entry.brain = new RealtimeBrainBridge(
+            session,
+            brain,
+            conversationId,
+            (event) => this.observe(entry, event),
+            () => {
+              void this.stop(userId, relayId).catch(() => {});
+            },
+          );
+        } catch (error) {
+          this.detach(entry);
+          await this.closeEntry(entry);
+          throw error;
+        }
+      }
       return {
         relay_id: relayId,
         relay_state: "ACTIVE",
@@ -334,6 +355,7 @@ export class RealtimeVoiceRelayService {
   private detach(entry: RelayEntry) {
     if (entry.finalized) return;
     entry.finalized = true;
+    entry.brain?.close();
     entry.output.close();
     clearTimeout(entry.expiry_timer);
     entry.unsubscribe();

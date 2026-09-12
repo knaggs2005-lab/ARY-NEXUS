@@ -206,3 +206,7 @@ Preserved wake/activation services and added fixed-path hashed model loading plu
 ## Overnight Stage 2I — local owner verification boundary
 
 Added optional OwnerVoiceGate, local-only SpeakerVerificationProvider, owner-scoped encrypted template storage and explicit enrollment/delete controls. No owner biometric template was created. WeSpeaker model/frontend/license/calibration remain setup gates. Verification never grants action authority and is explicitly not replay-resistant. Tests cover encryption, owner isolation, version drift, deletion/re-enrollment and fail-closed decisions.
+
+## Overnight Stage 2J — canonical Brain authority
+
+Enabled exact final input transcription and disabled automatic Realtime responses. Existing authenticated relay can delegate final voice turns once to the existing Brain/conversation and render its final text through the original Realtime session. No exposed tools, secondary memory, implicit approvals or independent model reasoning. Synthetic tests exercise cancellation, approval text, real local Brain message/memory behavior and protocol fields; updated live handshake and synthetic relay passed. Physical complete voice workflow remains pending.
