@@ -86,3 +86,7 @@ Provider function calling could bypass permissions; ephemeral history could dive
 # External Blockers
 
 GPT Live project/model access must be enabled and verified. Twilio KYC/compliance and bidirectional media capability are unresolved. Real microphone/network testing requires owner hardware and consent.
+
+## Stage 1 — contracts only
+
+Added `src/domain/realtime-voice.ts` with provider-agnostic session, turn, event, interruption, audio, usage, failure, capability, availability, and fallback contracts. Nexus conversation identity is distinct from provider session identity; interruption explicitly cannot cancel external effects; partial transcripts can remain ephemeral. Added pure contract tests in `tests/realtime-voice-contract.test.ts`. No provider, socket, endpoint, codec, UI, environment, or existing voice behavior was changed.
