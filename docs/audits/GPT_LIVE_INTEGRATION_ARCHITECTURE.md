@@ -130,3 +130,5 @@ The activator now locks duplicate starts while connecting or active, carries an 
 ## Stage 2E-A — local microphone PCM pipeline
 
 Added provider-agnostic capture contracts and deterministic Float32-to-PCM16/sample-rate conversion. No microphone provider wiring or network forwarding is included; this stage prepares bounded 20 ms, mono 24 kHz frames for a later explicitly orchestrated stage.
+
+Stage 2E-A completion: concrete browser capture and packetizer are implemented with synthetic provider tests. Synthetic verification covers frame assembly and lifecycle; physical microphone verification remains `NOT_RUN`. No cloud forwarding is implemented.

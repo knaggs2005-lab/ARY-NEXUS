@@ -43,7 +43,8 @@
     "test:orchestrator:live": "node --import tsx scripts/evaluate-orchestrator-live.ts",
     "missions:worker": "tsx scripts/run-missions.ts",
     "control:build": "node scripts/build-control-helper.mjs",
-    "test:realtime-live": "tsx scripts/evaluate-realtime-live.ts"
+    "test:realtime-live": "tsx scripts/evaluate-realtime-live.ts",
+    "test:mic-live": "tsx scripts/evaluate-mic-live.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

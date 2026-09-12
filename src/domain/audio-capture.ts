@@ -4,6 +4,7 @@ export type AudioCaptureState =
 export interface AudioCaptureConfig {
   readonly targetSampleRateHz?: number;
   readonly frameDurationMs?: number;
+  readonly signal?: AbortSignal;
 }
 export interface AudioCaptureFrame extends RealtimeVoiceAudioFrame {
   readonly frame_index: number;
@@ -13,11 +14,11 @@ export interface AudioCaptureFailure {
   readonly message: string;
 }
 export interface AudioCaptureHealth {
-  readonly state: AudioCaptureState;
-  readonly sample_rate_hz: number;
-  readonly channels: 1;
-  readonly frame_count: number;
-  readonly reason?: string;
+  state: AudioCaptureState;
+  sample_rate_hz: number;
+  channels: 1;
+  frame_count: number;
+  reason?: string;
 }
 export interface AudioCaptureSession {
   readonly health: AudioCaptureHealth;

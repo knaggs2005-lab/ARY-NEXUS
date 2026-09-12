@@ -3,6 +3,10 @@ export async function capturePCM(
   stream: MediaStream,
   signal: AbortSignal,
   receive: (samples: Float32Array, rate: number) => void,
+  options: {
+    readonly sampleRate?: number;
+    readonly channelCount?: number;
+  } = {},
 ) {
   let context: AudioContext | undefined;
   let stopped = false;
@@ -21,11 +25,19 @@ export async function capturePCM(
   signal.addEventListener("abort", stop, { once: true });
   try {
     signal.throwIfAborted();
-    context = new AudioContext();
+    context = new AudioContext(
+      options.sampleRate ? { sampleRate: options.sampleRate } : undefined,
+    );
     await context.audioWorklet.addModule("/audio/ary-capture.js");
     signal.throwIfAborted();
     source = context.createMediaStreamSource(stream);
-    node = new AudioWorkletNode(context, "ary-capture");
+    node = new AudioWorkletNode(context, "ary-capture", {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      channelCount: options.channelCount ?? 1,
+      channelCountMode: "explicit",
+      channelInterpretation: "speakers",
+    });
     node.port.onmessage = (event: MessageEvent<Float32Array>) => {
       if (!signal.aborted) receive(event.data, context!.sampleRate);
     };
