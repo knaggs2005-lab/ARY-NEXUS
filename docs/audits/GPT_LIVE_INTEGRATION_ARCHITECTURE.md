@@ -114,3 +114,7 @@ Live diagnostic reached OpenAI and received `error.type=invalid_request_error`, 
 ## Stage 2C — local wake-word layer
 
 Added provider-agnostic local wake-word contracts and `WakeWordService` lifecycle boundary. Detection is disabled by default, local-only, bounded to phrase metadata, debounced, and suppressible during playback. The development provider is a lifecycle stub and makes no production recognition claim. Realtime session wiring and automatic Brain startup remain deferred to Stage 2D.
+
+## Stage 2D-A — wake to realtime activation bridge
+
+Added `VoiceActivationService` as a narrow orchestration boundary. It pauses local wake listening before requesting an injected realtime activator, ignores duplicate wakes, tracks sleeping/waking/active/failure states, and resumes local listening after activation failure or session end. It has no provider, audio, Brain, tool, memory, or external-system knowledge.
