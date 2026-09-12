@@ -126,3 +126,7 @@ Added a server-side `OpenAIRealtimeVoiceActivator` that reuses the existing `Rea
 ## Stage 2D-B.1 — activator concurrency/context correction
 
 The activator now locks duplicate starts while connecting or active, carries an existing Nexus `conversation_id` supplied by its caller, and rejects missing context instead of inventing IDs. Provider failure clears the active reference and later close notifications are deduplicated.
+
+## Stage 2E-A — local microphone PCM pipeline
+
+Added provider-agnostic capture contracts and deterministic Float32-to-PCM16/sample-rate conversion. No microphone provider wiring or network forwarding is included; this stage prepares bounded 20 ms, mono 24 kHz frames for a later explicitly orchestrated stage.
