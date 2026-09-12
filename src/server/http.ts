@@ -39,6 +39,7 @@ import { withoutEmbedding } from "../domain/models";
 import { transcriptionResponse } from "./voice-stream";
 import {
   realtimeVoiceRelayFor,
+  REALTIME_MAX_BATCH_BYTES,
   type RealtimeVoiceRelayService,
 } from "../services/realtime-voice-relay-service";
 const json = (data: unknown, status = 200) =>
@@ -75,7 +76,7 @@ async function binaryBody(request: Request, maxBytes: number) {
     size += value.byteLength;
     if (size > maxBytes) {
       await reader.cancel();
-      throw new AppError("Realtime audio batch exceeds 4,800 bytes", 413);
+      throw new AppError("Realtime audio batch exceeds 14,400 bytes", 413);
     }
     chunks.push(value);
   }
@@ -215,7 +216,7 @@ export async function handle(
       method === "POST"
     ) {
       const relayId = z.uuid().parse(path[2]);
-      const audio = await binaryBody(request, 4800);
+      const audio = await binaryBody(request, REALTIME_MAX_BATCH_BYTES);
       return json(
         await realtimeRelay().append(repository.userId, relayId, audio),
       );

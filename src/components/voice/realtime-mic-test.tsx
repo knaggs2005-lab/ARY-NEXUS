@@ -1,5 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type {
+  AudioCaptureFrame,
+  AudioCaptureProvider,
+} from "../../domain/audio-capture";
 import { api } from "../api";
 import { BrowserAudioCaptureProvider } from "../../infrastructure/audio/browser-audio-capture";
 import {
@@ -13,6 +17,7 @@ export function RealtimeMicTest() {
   const [conversation, setConversation] = useState("");
   const [ids, setIds] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  const [source, setSource] = useState("Not started");
   useEffect(() => {
     const refresh = setInterval(() => {
       if (client.current) setHealth(client.current.snapshot());
@@ -44,7 +49,7 @@ export function RealtimeMicTest() {
       );
     }
   }
-  async function start() {
+  async function start(synthetic = false) {
     if (
       client.current &&
       ["STARTING", "CAPTURING", "STOPPING"].includes(
@@ -52,14 +57,49 @@ export function RealtimeMicTest() {
       )
     )
       return;
+    let emit: ((frame: AudioCaptureFrame) => void) | undefined;
+    const syntheticProvider: AudioCaptureProvider = {
+      start: async (_config, onFrame) => {
+        emit = onFrame;
+        return {
+          health: {
+            state: "CAPTURING",
+            microphone_active: false,
+            sample_rate_hz: 24000,
+            channels: 1,
+            frame_count: 0,
+          },
+          pause() {},
+          resume() {},
+          async stop() {},
+        };
+      },
+    };
+    setSource(
+      synthetic
+        ? "SYNTHETIC SILENCE — microphone not opened"
+        : "OWNER MICROPHONE",
+    );
     const next = new RealtimeMicRelayClient(
-      new BrowserAudioCaptureProvider(),
+      synthetic ? syntheticProvider : new BrowserAudioCaptureProvider(),
       api,
     );
     client.current = next;
     const starting = next.start(conversation);
     setHealth(next.snapshot());
     await starting;
+    if (synthetic && emit) {
+      for (let i = 0; i < 15; i++)
+        emit({
+          encoding: "pcm16",
+          sample_rate_hz: 24000,
+          channels: 1,
+          frame_index: i,
+          data: new Uint8Array(960),
+        });
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await next.stop();
+    }
     setHealth(next.snapshot());
   }
   const busy =
@@ -126,6 +166,13 @@ export function RealtimeMicTest() {
           STOP REALTIME MIC TEST
         </button>
       </div>
+      <button
+        onClick={() => void start(true)}
+        disabled={!!busy || !conversation}
+      >
+        CHECK RELAY — SYNTHETIC ONLY
+      </button>
+      <p role="status">Test source: {source}</p>
       {health && (
         <dl
           style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
@@ -139,10 +186,10 @@ export function RealtimeMicTest() {
         </dl>
       )}
       <p style={{ fontSize: 12, color: "#aeb8d0" }}>
-        Buffer limit: 15 frames / 300 ms including the request in flight. Slow
-        delivery fails the test and stops capture. If offline or the page is
-        terminated, remote closure may be unconfirmed; the server expires
-        abandoned sessions after five minutes.
+        Batches: 15 frames / 300 ms. Buffer limit: 30 frames / 600 ms including
+        the request in flight. Slow delivery fails the test and stops capture.
+        If offline or the page is terminated, remote closure may be unconfirmed;
+        the server expires abandoned sessions after five minutes.
       </p>
     </section>
   );

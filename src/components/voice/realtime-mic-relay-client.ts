@@ -8,9 +8,9 @@ import type {
   RealtimeRelayStatus,
 } from "../../services/realtime-voice-relay-service";
 
-export const MIC_RELAY_MAX_FRAMES = 15; // 300 ms, including the batch in flight.
+export const MIC_RELAY_MAX_FRAMES = 30; // 600 ms, including the batch in flight.
 const FRAME_BYTES = 960;
-const BATCH_FRAMES = 5;
+const BATCH_FRAMES = 15;
 export type RelayRequest = (
   path: string,
   options?: RequestInit,

@@ -9,10 +9,10 @@ import type {
 import { AppError } from "../domain/validation";
 
 export const REALTIME_FRAME_BYTES = 960;
-export const REALTIME_MAX_BATCH_FRAMES = 5;
+export const REALTIME_MAX_BATCH_FRAMES = 15;
 export const REALTIME_MAX_BATCH_BYTES =
   REALTIME_FRAME_BYTES * REALTIME_MAX_BATCH_FRAMES;
-export const REALTIME_BATCH_DURATION_MS = 100;
+export const REALTIME_BATCH_DURATION_MS = 300;
 const DEFAULT_RELAY_TTL_MS = 5 * 60 * 1000;
 
 export type RealtimeRelayStatus = {
@@ -160,7 +160,7 @@ export class RealtimeVoiceRelayService {
     if (body.byteLength === 0)
       throw new AppError("Realtime audio batch is empty", 400);
     if (body.byteLength > REALTIME_MAX_BATCH_BYTES)
-      throw new AppError("Realtime audio batch exceeds 4,800 bytes", 413);
+      throw new AppError("Realtime audio batch exceeds 14,400 bytes", 413);
     if (body.byteLength % REALTIME_FRAME_BYTES !== 0)
       throw new AppError(
         "Realtime audio batch must contain complete 960-byte frames",

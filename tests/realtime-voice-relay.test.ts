@@ -183,9 +183,9 @@ describe("authenticated local realtime relay", () => {
     expect(result).toMatchObject({
       relay_state: "ACTIVE",
       frame_bytes: REALTIME_FRAME_BYTES,
-      max_batch_frames: 5,
+      max_batch_frames: 15,
       max_batch_bytes: REALTIME_MAX_BATCH_BYTES,
-      batch_duration_ms: 100,
+      batch_duration_ms: 300,
     });
     expect(result.provider_session_id).toBeUndefined();
     expect(provider.createSessionMock).toHaveBeenCalledOnce();
@@ -229,7 +229,7 @@ describe("authenticated local realtime relay", () => {
     expect(provider.createSessionMock).toHaveBeenCalledOnce();
   });
 
-  it("forwards five exact 960-byte frames and reports bounded counters", async () => {
+  it("forwards fifteen exact 960-byte frames and reports bounded counters", async () => {
     const started = await startSession();
     const relayId = (await started.json()).relay_id as string;
     const batch = Uint8Array.from(
@@ -240,10 +240,10 @@ describe("authenticated local realtime relay", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       relay_id: relayId,
-      frames_forwarded: 5,
+      frames_forwarded: 15,
       bytes_forwarded: REALTIME_MAX_BATCH_BYTES,
     });
-    expect(provider.sessions[0].frames).toHaveLength(5);
+    expect(provider.sessions[0].frames).toHaveLength(15);
     provider.sessions[0].frames.forEach((frame, index) => {
       expect(frame).toHaveLength(REALTIME_FRAME_BYTES);
       expect(frame[0]).toBe((index * REALTIME_FRAME_BYTES) % 256);
@@ -254,7 +254,7 @@ describe("authenticated local realtime relay", () => {
     const status = await relayRequest("GET", relayId, "status");
     expect(await status.json()).toMatchObject({
       relay_state: "ACTIVE",
-      frames_forwarded: 5,
+      frames_forwarded: 15,
       bytes_forwarded: REALTIME_MAX_BATCH_BYTES,
     });
   });

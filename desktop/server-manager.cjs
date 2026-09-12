@@ -130,6 +130,8 @@ function createServerManager(
           env: {
             ...process.env,
             NODE_ENV: "development",
+            // Set before Next/ws evaluation; avoid incompatible bundled native addon.
+            WS_NO_BUFFER_UTIL: "1",
             NEXT_TELEMETRY_DISABLED: "1",
             ARY_DESKTOP_SESSION_TOKEN: bridgeSession,
           },

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack --hostname 127.0.0.1",
-    "build": "next build --webpack",
-    "start": "next start --hostname 127.0.0.1",
+    "dev": "WS_NO_BUFFER_UTIL=1 next dev --webpack --hostname 127.0.0.1",
+    "build": "WS_NO_BUFFER_UTIL=1 next build --webpack",
+    "start": "WS_NO_BUFFER_UTIL=1 next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx scripts/seed.ts",

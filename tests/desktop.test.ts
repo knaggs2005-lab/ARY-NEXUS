@@ -124,6 +124,7 @@ describe("Desktop trust and server ownership", () => {
     expect(spawn.mock.calls[0][2]).toMatchObject({
       cwd: process.cwd(),
       detached: true,
+      env: expect.objectContaining({ WS_NO_BUFFER_UTIL: "1" }),
     });
     expect(spawn.mock.calls[0][2].shell).toBeUndefined();
     await manager.stop();

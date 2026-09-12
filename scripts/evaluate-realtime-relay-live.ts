@@ -32,16 +32,16 @@ async function main() {
     relay = new RealtimeVoiceRelayService(provider);
     const started = await relay.start(user, conversation.id);
     id = started.relay_id;
-    await relay.append(user, id, new Uint8Array(4800));
+    await relay.append(user, id, new Uint8Array(14400));
     await new Promise((resolve) => setTimeout(resolve, 1500));
     const status = relay.status(user, id);
-    if (providerError || !status || status.frames_forwarded !== 5)
+    if (providerError || !status || status.frames_forwarded !== 15)
       throw new Error(
         providerError ?? "Relay closed or frame counters invalid",
       );
     await relay.stop(user, id);
     console.log(
-      "REAL_RELAY: PASS (5 synthetic silence frames, 4800 bytes, closed)",
+      "REAL_RELAY: PASS (15 synthetic silence frames, 14400 bytes, closed)",
     );
   } catch (error) {
     const key = process.env.OPENAI_API_KEY ?? "unused-key";

@@ -96,21 +96,21 @@ function setup() {
 }
 afterEach(() => vi.useRealTimers());
 describe("physical capture relay client (synthetic input only)", () => {
-  it("starts relay first, sends five exact ordered frames, flushes two final whole frames and retains only metadata", async () => {
+  it("starts relay first, sends fifteen exact ordered frames, flushes two final whole frames and retains only metadata", async () => {
     const s = setup();
     await s.client.start(conversation);
     expect(s.order).toEqual(["relay-start", "mic-start"]);
-    for (let i = 0; i < 7; i++) s.frame();
+    for (let i = 0; i < 17; i++) s.frame();
     await s.client.stop();
-    expect(s.bodies.map((b) => b.byteLength)).toEqual([4800, 1920]);
+    expect(s.bodies.map((b) => b.byteLength)).toEqual([14400, 1920]);
     const all = new Uint8Array([...s.bodies[0], ...s.bodies[1]]);
-    for (let i = 0; i < 7; i++)
+    for (let i = 0; i < 17; i++)
       expect(all.slice(i * 960, (i + 1) * 960)).toEqual(
         new Uint8Array(960).fill(i),
       );
     expect(s.client.snapshot()).toMatchObject({
-      frames_captured: 7,
-      frames_forwarded: 7,
+      frames_captured: 17,
+      frames_forwarded: 17,
       batches_sent: 2,
       cleanup_confirmed: true,
       microphone_active: false,
@@ -130,7 +130,7 @@ describe("physical capture relay client (synthetic input only)", () => {
       s.order.indexOf("relay-stop"),
     );
     s.frame();
-    expect(s.client.snapshot().frames_captured).toBe(7);
+    expect(s.client.snapshot().frames_captured).toBe(17);
     // The only external boundary available to this client is the realtime relay.
     expect(
       s.request.mock.calls.every(([path]) =>
@@ -138,6 +138,96 @@ describe("physical capture relay client (synthetic input only)", () => {
       ),
     ).toBe(true);
   });
+  it.each(Array.from({ length: 14 }, (_, i) => i + 1))(
+    "flushes %i complete final frames without padding",
+    async (count) => {
+      const s = setup();
+      await s.client.start(conversation);
+      for (let i = 0; i < count; i++) s.frame();
+      expect(s.bodies).toHaveLength(0);
+      await s.client.stop();
+      expect(s.bodies.map((body) => body.byteLength)).toEqual([count * 960]);
+      expect(s.client.snapshot()).toMatchObject({
+        frames_captured: count,
+        frames_forwarded: count,
+        cleanup_confirmed: true,
+        failure_code: null,
+      });
+    },
+  );
+
+  it.each([178, 220, 260])(
+    "sustains 12 seconds of capture at %i ms per audio request",
+    async (latency) => {
+      vi.useFakeTimers();
+      const s = setup();
+      const immediate = s.request.getMockImplementation()!;
+      let active = 0,
+        peakRequests = 0,
+        peakFrames = 0;
+      s.request.mockImplementation(async (path, options) => {
+        if (!path.endsWith("/audio")) return immediate(path, options);
+        active++;
+        peakRequests = Math.max(peakRequests, active);
+        await new Promise((resolve) => setTimeout(resolve, latency));
+        active--;
+        return immediate(path, options);
+      });
+      await s.client.start(conversation);
+      for (let i = 0; i < 600; i++) {
+        s.frame();
+        peakFrames = Math.max(
+          peakFrames,
+          s.client.snapshot().queue_depth_frames,
+        );
+        await vi.advanceTimersByTimeAsync(20);
+      }
+      const stop = s.client.stop();
+      await vi.advanceTimersByTimeAsync(latency);
+      await stop;
+      expect(peakRequests).toBe(1);
+      expect(peakFrames).toBeLessThanOrEqual(30);
+      expect(s.client.snapshot()).toMatchObject({
+        frames_captured: 600,
+        frames_forwarded: 600,
+        bytes_forwarded: 576000,
+        batches_sent: 40,
+        failure_code: null,
+        cleanup_confirmed: true,
+      });
+      s.bodies.forEach((body, batch) => {
+        for (let frame = 0; frame < 15; frame++)
+          expect(body.slice(frame * 960, (frame + 1) * 960)).toEqual(
+            new Uint8Array(960).fill(batch * 15 + frame),
+          );
+      });
+    },
+  );
+
+  it("sustained slower-than-realtime transport fails within the bounded buffer", async () => {
+    vi.useFakeTimers();
+    const s = setup();
+    const immediate = s.request.getMockImplementation()!;
+    s.request.mockImplementation(async (path, options) => {
+      if (path.endsWith("/audio"))
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      return immediate(path, options);
+    });
+    await s.client.start(conversation);
+    for (let i = 0; i < 100 && !s.client.snapshot().failure_code; i++) {
+      s.frame();
+      await vi.advanceTimersByTimeAsync(20);
+    }
+    expect(s.client.snapshot().failure_code).toBe("BACKPRESSURE_LIMIT");
+    expect(s.client.snapshot().queue_depth_frames).toBeLessThanOrEqual(30);
+    await vi.advanceTimersByTimeAsync(400);
+    await s.client.stop();
+    expect(s.client.snapshot().cleanup_confirmed).toBe(true);
+    expect(
+      s.request.mock.calls.filter(([p]) => p.endsWith("/audio")),
+    ).toHaveLength(1);
+  });
+
   it.each([401, 404, 503])(
     "relay start HTTP %s never opens microphone",
     async (status) => {
@@ -195,7 +285,7 @@ describe("physical capture relay client (synthetic input only)", () => {
     const s = setup();
     await s.client.start(conversation);
     s.request.mockRejectedValueOnce(new Error("private provider detail"));
-    for (let i = 0; i < 5; i++) s.frame();
+    for (let i = 0; i < 15; i++) s.frame();
     await tick();
     await s.client.stop();
     expect(s.session.stop).toHaveBeenCalledOnce();
@@ -204,7 +294,7 @@ describe("physical capture relay client (synthetic input only)", () => {
       s.request.mock.calls.filter(([p]) => p.endsWith("/audio")),
     ).toHaveLength(1);
   });
-  it("bounds backpressure to 15 frames and one request", async () => {
+  it("bounds backpressure to 30 frames and one request", async () => {
     const s = setup();
     await s.client.start(conversation);
     let resolve!: (r: Response) => void;
@@ -214,13 +304,13 @@ describe("physical capture relay client (synthetic input only)", () => {
           resolve = r;
         }),
     );
-    for (let i = 0; i < 16; i++) s.frame();
-    expect(s.client.snapshot().queue_depth_frames).toBe(15);
+    for (let i = 0; i < 31; i++) s.frame();
+    expect(s.client.snapshot().queue_depth_frames).toBe(30);
     expect(s.client.snapshot().failure_code).toBe("BACKPRESSURE_LIMIT");
     expect(
       s.request.mock.calls.filter(([p]) => p.endsWith("/audio")),
     ).toHaveLength(1);
-    resolve(Response.json({ frames_forwarded: 5, bytes_forwarded: 4800 }));
+    resolve(Response.json({ frames_forwarded: 15, bytes_forwarded: 14400 }));
     await s.client.stop();
     expect(s.client.snapshot().queue_depth_frames).toBe(0);
   });
@@ -229,7 +319,7 @@ describe("physical capture relay client (synthetic input only)", () => {
     const s = setup();
     await s.client.start(conversation);
     s.request.mockImplementationOnce(() => new Promise(() => {}));
-    for (let i = 0; i < 5; i++) s.frame();
+    for (let i = 0; i < 15; i++) s.frame();
     const stop = s.client.stop();
     expect(s.client.stop()).toBe(stop);
     await vi.advanceTimersByTimeAsync(800);
