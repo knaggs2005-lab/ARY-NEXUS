@@ -17,8 +17,9 @@ type OpenAIRealtimeEvent = {
     id?: string;
     audio?: { output?: { format?: { type?: string; rate?: number } } };
   };
-  response?: { usage?: Record<string, unknown> };
+  response?: { id?: string; usage?: Record<string, unknown> };
   item_id?: string;
+  response_id?: string;
   delta?: string;
   text?: string;
   audio?: string;
@@ -68,6 +69,8 @@ class Session implements RealtimeVoiceSession {
   private closed = false;
   private ready = false;
   private outputPcm = false;
+  private responseId: string | null = null;
+  private cancelled = new Set<string>();
   private listeners = new Set<(e: RealtimeVoiceEvent) => void>();
   constructor(
     private config: RealtimeVoiceSessionConfig,
@@ -100,6 +103,11 @@ class Session implements RealtimeVoiceSession {
       this.emit({ type: "state", state: "IDLE" });
       return;
     }
+    if (e.type === "response.created") {
+      this.responseId = e.response?.id ?? null;
+      return;
+    }
+    if (e.response_id && this.cancelled.has(e.response_id)) return;
     if (e.type === "input_audio_buffer.speech_started") {
       this.emit({ type: "speech_start", turn_id: e.item_id ?? "unknown" });
       this.emit({ type: "state", state: "USER_SPEAKING" });
@@ -140,6 +148,7 @@ class Session implements RealtimeVoiceSession {
         });
         return;
       }
+      if (!e.response_id || e.response_id !== this.responseId) return;
       this.emit({
         type: "assistant_audio_delta",
         turn_id: e.item_id ?? "unknown",
@@ -160,6 +169,8 @@ class Session implements RealtimeVoiceSession {
       return;
     }
     if (e.type === "response.done") {
+      if (e.response?.id && this.cancelled.has(e.response.id)) return;
+      this.responseId = null;
       if (e.response?.usage ?? e.usage)
         this.emit({
           type: "usage",
@@ -213,8 +224,18 @@ class Session implements RealtimeVoiceSession {
       at: new Date().toISOString(),
       cancel_external_effect: false,
     });
-    if (kind === "STOP_AUDIO" || kind === "BOTH")
-      this.transport.send({ type: "response.cancel" });
+    if (
+      (kind === "STOP_AUDIO" || kind === "BOTH") &&
+      this.responseId &&
+      !this.cancelled.has(this.responseId)
+    ) {
+      const id = this.responseId;
+      this.cancelled.add(id);
+      if (this.cancelled.size > 64)
+        this.cancelled.delete(this.cancelled.values().next().value!);
+      this.responseId = null;
+      this.transport.send({ type: "response.cancel", response_id: id });
+    }
     this.emit({ type: "interruption", interruption: i });
     this.emit({ type: "state", state: "INTERRUPTED" });
   }

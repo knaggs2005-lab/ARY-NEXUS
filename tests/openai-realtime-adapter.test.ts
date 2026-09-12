@@ -49,8 +49,11 @@ describe("OpenAI realtime adapter correction", () => {
     const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
       config,
     );
+    t.emit({ type: "response.created", response: { id: "response" } });
     s.interrupt("BOTH");
-    expect(t.sent).toEqual([{ type: "response.cancel" }]);
+    expect(t.sent).toEqual([
+      { type: "response.cancel", response_id: "response" },
+    ]);
   });
   it("response.done returns idle with or without usage", async () => {
     const t = transport();

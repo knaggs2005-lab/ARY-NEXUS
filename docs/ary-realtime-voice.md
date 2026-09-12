@@ -19,3 +19,9 @@ A dedicated output AudioContext uses the system output rate. Each source buffer 
 Validation: 1,640 tests / 100 files passed, typecheck and isolated production build passed. A bounded live output request returned 5 chunks / 86,400 bytes, verified PCM16 mono 24 kHz, first chunk at 640 ms. This measures provider reception, not audible latency or physical playback. The `/mic-test` button START VOICE WITH PLAYBACK requires an owner gesture and discloses microphone upload and speakers.
 
 Protocol references: [OpenAI client events](https://platform.openai.com/docs/api-reference/realtime-client-events/conversation/item/create), [OpenAI server events](https://platform.openai.com/docs/api-reference/realtime-server-events/input_audio_buffer/committed). Only current non-beta event names are used for new output handling.
+
+## Stage 2G — barge-in
+
+IMPLEMENTED / SYNTHETICALLY VERIFIED; OWNER_BARGE_IN_ACCEPTANCE_PENDING. Each new provider speech-start turn requests canonical BOTH interruption on the existing session. Active response IDs fence cancellation and reject late audio/completion events from cancelled responses; duplicate speech IDs are bounded and suppressed. Cancellation preserves `cancel_external_effect: false`. The output client immediately clears its scheduled PCM on the interruption event; capture remains active. Browser capture requests echoCancellation and noiseSuppression. This uses OS/browser processing, not a claim of perfect acoustic echo rejection. Loud speakers, room echo and device permission behavior require owner tests. Wake suppression is wired with the unified runtime in the later stage.
+
+Focused interruption/output/capture tests passed. Full regression: 1,641 tests / 100 files; typecheck and isolated build passed. No physical audio devices or extra paid provider diagnostics used in this stage.

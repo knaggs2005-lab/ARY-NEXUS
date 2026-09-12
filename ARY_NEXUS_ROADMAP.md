@@ -398,3 +398,4 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 
 - Input gate: owner supplied 439 captured/forwarded frames, both VAD flags, no errors, CLOSED/cleanup true; owner-reported live input PASS.
 - Stage 2F: bounded authenticated output relay and dedicated playback implemented; 1,640 tests, typecheck/build passed; live PCM output verified without speakers. OWNER_PLAYBACK_ACCEPTANCE_PENDING. See [voice checkpoint report](docs/ary-realtime-voice.md). Further overnight stages are explicitly authorized by the current owner prompt; unrelated NEXT 3 is unchanged.
+- Stage 2G: response-specific barge-in, duplicate/late-event suppression and browser echo cancellation implemented; 1,641 tests / 100 files, typecheck and build passed. Physical barge-in/echo acceptance pending; external-effect authority unchanged.

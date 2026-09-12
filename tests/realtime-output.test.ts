@@ -123,8 +123,10 @@ describe("authenticated relay output boundary", () => {
       failure,
     );
     await client.open("id");
+    emit({ type: "response.created", response: { id: "response" } });
     emit({
       type: "response.output_audio.delta",
+      response_id: "response",
       item_id: "turn",
       delta: Buffer.from(new Uint8Array(960)).toString("base64"),
     });
@@ -173,5 +175,67 @@ describe("authenticated relay output boundary", () => {
     emit({ type: "response.output_audio.delta", delta: "AAAA" });
     expect(events.at(-1).type).toBe("failure");
     await s.close();
+  });
+});
+
+describe("barge-in without cancelling external effects", () => {
+  it("cancels one provider response, rejects late deltas and resumes a new turn", async () => {
+    let emit: (e: any) => void = () => {};
+    const commands: any[] = [];
+    const s = await new OpenAIRealtimeSessionProvider(() => ({
+      connect: async (cb) => {
+        emit = cb;
+        cb({
+          type: "session.updated",
+          session: {
+            audio: { output: { format: { type: "audio/pcm", rate: 24000 } } },
+          },
+        });
+      },
+      send: (c) => commands.push(c),
+      close: async () => {},
+    })).createSession({
+      user_id: "u",
+      conversation_id: "c",
+      classic_fallback_available: false,
+    });
+    const events: any[] = [];
+    s.onEvent((e) => events.push(e));
+    emit({ type: "response.created", response: { id: "r1" } });
+    emit({
+      type: "response.output_audio.delta",
+      response_id: "r1",
+      delta: "AAA=",
+    });
+    s.interrupt("BOTH");
+    s.interrupt("BOTH");
+    expect(commands).toEqual([{ type: "response.cancel", response_id: "r1" }]);
+    emit({
+      type: "response.output_audio.delta",
+      response_id: "r1",
+      delta: "AAA=",
+    });
+    emit({ type: "response.done", response: { id: "r1" } });
+    expect(
+      events.filter((e) => e.type === "assistant_audio_delta"),
+    ).toHaveLength(1);
+    expect(s.state).toBe("INTERRUPTED");
+    expect(
+      events
+        .filter((e) => e.type === "interruption")
+        .every((e) => e.interruption.cancel_external_effect === false),
+    ).toBe(true);
+    emit({ type: "response.created", response: { id: "r2" } });
+    emit({
+      type: "response.output_audio.delta",
+      response_id: "r2",
+      delta: "AAA=",
+    });
+    expect(
+      events.filter((e) => e.type === "assistant_audio_delta"),
+    ).toHaveLength(2);
+    await s.close();
+    s.interrupt("BOTH");
+    expect(commands).toHaveLength(1);
   });
 });

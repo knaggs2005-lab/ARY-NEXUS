@@ -160,7 +160,12 @@ export class BrowserAudioCaptureProvider implements AudioCaptureProvider {
         ((constraints: MediaStreamConstraints) =>
           navigator.mediaDevices.getUserMedia(constraints));
       stream = await gum({
-        audio: { channelCount: { exact: 1 }, sampleRate: { ideal: RATE } },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: { exact: 1 },
+          sampleRate: { ideal: RATE },
+        },
       });
       // Acquisition is the point at which the physical microphone is active.
       // Keep this truthful while capture setup is still completing.

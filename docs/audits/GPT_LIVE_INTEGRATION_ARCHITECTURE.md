@@ -194,3 +194,7 @@ Nexus retains no recordings, raw PCM, base64 audio, transcripts or audio-bearing
 ## Overnight voice stack — Stage 2F
 
 The owner supplied a successful 439-frame physical input/VAD/cleanup run after `2bd942c`; input live acceptance is now owner-reported PASS. Added bounded owner-authenticated NDJSON output on the existing relay, current provider audio event/format handling, separate system-rate PCM playback and explicit dev playback control. No unattended physical devices used. 1,640 tests, typecheck and isolated build passed; one live output diagnostic confirmed mono 24 kHz PCM and 640 ms first chunk reception. Physical playback remains pending. See [checkpoint details](../ary-realtime-voice.md).
+
+## Overnight Stage 2G — bounded interruption
+
+Provider response IDs now fence exact cancellation and late audio, while canonical interruption retains non-cancellation of external effects. Relay deduplicates provider speech starts; playback clears scheduled output without ending capture. Browser AEC/noise suppression enabled. Synthetic lifecycle and regression checks cover this; physical acoustic acceptance remains pending. See the consolidated voice report.

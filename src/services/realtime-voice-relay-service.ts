@@ -58,6 +58,7 @@ type RelayEntry = {
   expiry_timer: ReturnType<typeof setTimeout>;
   finalized: boolean;
   output: RealtimeOutputStream;
+  speechTurns: Set<string>;
   close_promise: Promise<void> | null;
 };
 
@@ -131,6 +132,7 @@ export class RealtimeVoiceRelayService {
       entry.session = session;
       entry.status = status;
       entry.finalized = false;
+      entry.speechTurns = new Set();
       entry.output = new RealtimeOutputStream(() => {
         entry.status.failure_code = "OUTPUT_DISCONNECTED_OR_OVERFLOW";
         this.detach(entry);
@@ -266,6 +268,19 @@ export class RealtimeVoiceRelayService {
       return;
     }
     if (event.type === "speech_start") {
+      if (!entry.speechTurns.has(event.turn_id)) {
+        entry.speechTurns.add(event.turn_id);
+        if (entry.speechTurns.size > 128)
+          entry.speechTurns.delete(entry.speechTurns.values().next().value!);
+        try {
+          entry.session.interrupt("BOTH");
+        } catch {
+          entry.status.failure_code = "INTERRUPTION_FAILED";
+          this.detach(entry);
+          void this.closeEntry(entry).catch(() => {});
+          return;
+        }
+      }
       entry.status.speech_start_seen = true;
       return;
     }
