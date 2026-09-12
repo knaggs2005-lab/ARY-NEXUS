@@ -17,7 +17,7 @@ const DEFAULT_RELAY_TTL_MS = 5 * 60 * 1000;
 
 export type RealtimeRelayStatus = {
   relay_id: string;
-  relay_state: "ACTIVE";
+  relay_state: "ACTIVE" | "CLOSED";
   realtime_state: RealtimeVoiceSessionState;
   frames_forwarded: number;
   bytes_forwarded: number;
@@ -69,7 +69,10 @@ export class RealtimeVoiceRelayService {
   private readonly entries = new Map<string, RelayEntry>();
   private readonly activeByUser = new Map<string, string>();
   private readonly startingUsers = new Set<string>();
-  private readonly closedByUser = new Map<string, Set<string>>();
+  private readonly closedByUser = new Map<
+    string,
+    Map<string, RealtimeRelayStatus>
+  >();
   private readonly ttlMs: number;
   private readonly now: Clock;
 
@@ -196,10 +199,19 @@ export class RealtimeVoiceRelayService {
     };
   }
 
-  status(userId: string, relayId: string): RealtimeRelayStatus | null {
+  status(
+    userId: string,
+    relayId: string,
+    includeClosed = false,
+  ): RealtimeRelayStatus | null {
     this.expireEntries();
     const entry = this.entries.get(relayId);
-    if (!entry || entry.user_id !== userId || entry.finalized) return null;
+    if (!entry || entry.user_id !== userId || entry.finalized) {
+      const closed = includeClosed
+        ? this.closedByUser.get(userId)?.get(relayId)
+        : undefined;
+      return closed ? { ...closed } : null;
+    }
     return { ...entry.status };
   }
 
@@ -249,7 +261,11 @@ export class RealtimeVoiceRelayService {
       return;
     }
     if (event.type === "failure") {
-      entry.status.failure_code = event.failure.code.slice(0, 120);
+      entry.status.failure_code = /^[A-Za-z0-9_.-]{1,120}$/.test(
+        event.failure.code,
+      )
+        ? event.failure.code
+        : "PROVIDER_FAILURE";
       this.detach(entry);
       void this.closeEntry(entry).catch(() => {});
       return;
@@ -266,6 +282,7 @@ export class RealtimeVoiceRelayService {
     const timer = setTimeout(() => {
       const entry = this.entries.get(relayId);
       if (!entry || entry.finalized) return;
+      entry.status.failure_code = "RELAY_EXPIRED";
       this.detach(entry);
       void this.closeEntry(entry).catch(() => {});
     }, this.ttlMs);
@@ -279,6 +296,7 @@ export class RealtimeVoiceRelayService {
         Date.parse(entry.status.created_at) + this.ttlMs <=
         this.now().getTime()
       ) {
+        entry.status.failure_code = "RELAY_EXPIRED";
         this.detach(entry);
         void this.closeEntry(entry).catch(() => {});
       }
@@ -293,9 +311,15 @@ export class RealtimeVoiceRelayService {
     this.entries.delete(entry.relay_id);
     if (this.activeByUser.get(entry.user_id) === entry.relay_id)
       this.activeByUser.delete(entry.user_id);
-    const closed = this.closedByUser.get(entry.user_id) ?? new Set<string>();
-    closed.add(entry.relay_id);
-    if (closed.size > 1000) closed.delete(closed.values().next().value!);
+    const closed =
+      this.closedByUser.get(entry.user_id) ??
+      new Map<string, RealtimeRelayStatus>();
+    closed.set(entry.relay_id, {
+      ...entry.status,
+      relay_state: "CLOSED",
+      realtime_state: entry.status.failure_code ? "FAILED" : "CLOSED",
+    });
+    if (closed.size > 1000) closed.delete(closed.keys().next().value!);
     this.closedByUser.set(entry.user_id, closed);
   }
 

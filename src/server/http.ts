@@ -230,7 +230,11 @@ export async function handle(
       const relayId = z.uuid().parse(path[2]);
       return json(
         required(
-          realtimeRelay().status(repository.userId, relayId),
+          realtimeRelay().status(
+            repository.userId,
+            relayId,
+            url.searchParams.get("include_closed") === "1",
+          ),
           "Realtime relay",
         ),
       );

@@ -336,6 +336,29 @@ describe("authenticated local realtime relay", () => {
     expect((await relayRequest("GET", relayId, "status")).status).toBe(404);
   });
 
+  it("retains owner-only bounded terminal evidence for the live harness", async () => {
+    const started = await startSession();
+    const relayId = (await started.json()).relay_id as string;
+    provider.sessions[0].emit({
+      type: "failure",
+      failure: {
+        code: "invalid_audio",
+        message: "private details",
+        retryable: false,
+      },
+    });
+    expect(relay.status(repository.userId, relayId)).toBeNull();
+    expect(relay.status(repository.userId, relayId, true)).toMatchObject({
+      relay_state: "CLOSED",
+      realtime_state: "FAILED",
+      failure_code: "invalid_audio",
+    });
+    expect(
+      JSON.stringify(relay.status(repository.userId, relayId, true)),
+    ).not.toContain("private details");
+    expect(relay.status(randomUUID(), relayId, true)).toBeNull();
+  });
+
   it("stops exactly once and makes repeated stop safe", async () => {
     const started = await startSession();
     const relayId = (await started.json()).relay_id as string;
