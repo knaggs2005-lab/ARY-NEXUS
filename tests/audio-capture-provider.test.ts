@@ -18,6 +18,22 @@ function stream() {
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 describe("BrowserAudioCaptureProvider", () => {
+  it("exposes metadata without raw audio", () => {
+    const metadata = frameMetadata({
+      encoding: "pcm16",
+      sample_rate_hz: 24000,
+      channels: 1,
+      data: new Uint8Array(960),
+      frame_index: 0,
+    });
+    expect(metadata).toEqual({
+      frame_index: 0,
+      sample_rate_hz: 24000,
+      channels: 1,
+      byte_length: 960,
+    });
+    expect(JSON.stringify(metadata)).not.toContain("data");
+  });
   it("assembles exact 480 sample/960 byte frames across arbitrary chunks", () => {
     const frames: any[] = [];
     const p = new Pcm16Packetizer((f) => frames.push(f));

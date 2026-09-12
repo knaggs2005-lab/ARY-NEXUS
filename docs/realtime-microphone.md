@@ -9,3 +9,7 @@ The concrete `BrowserAudioCaptureProvider` now acquires the existing microphone 
 ## Stage 2E-A.1 lifecycle correction
 
 Capture now uses one internally owned abort lifetime and one idempotent cleanup path. Caller cancellation, setup failure, unsupported sample rate, unexpected track end, and explicit stop all release the lease and tracks, discard buffered audio, detach listeners, and prevent late callbacks from emitting or restoring capture. `PAUSED` suppresses and discards frames while the microphone remains acquired (`microphone_active: true`); terminal states report it as inactive.
+
+## Physical acceptance harness
+
+Open `http://127.0.0.1:3000/mic-test` in the desktop/browser app. Click **START MIC TEST** explicitly, speak briefly, then click **STOP MIC TEST**. The page displays only state and bounded frame metadata (never samples or frame bytes). A passing run requires `CAPTURING`, 24,000 Hz, mono, at least one 960-byte frame, then `STOPPED` with `microphone_active: false` and no later frame count increase.

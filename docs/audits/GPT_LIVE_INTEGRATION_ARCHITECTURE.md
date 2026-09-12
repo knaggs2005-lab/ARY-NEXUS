@@ -136,3 +136,7 @@ Stage 2E-A completion: concrete browser capture and packetizer are implemented w
 ## Stage 2E-A.1 — microphone lifecycle reliability
 
 Corrected capture cleanup with an internal abort controller, terminal/fail-once guards, track-ended handling, late capture cleanup, and truthful `microphone_active` health. Pause retains the local microphone lease while suppressing and discarding frames. Cloud forwarding remains unimplemented.
+
+## Stage 2E-A.2 — physical microphone acceptance
+
+Added a development-only `/mic-test` route with explicit Start/Stop controls and metadata-only display. Physical acceptance requires owner interaction and remains unrun unless those controls are used on a browser/Electron runtime with microphone permission.

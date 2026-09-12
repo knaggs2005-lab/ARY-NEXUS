@@ -12,6 +12,14 @@ import {
 
 const RATE = 24_000;
 const SAMPLES = 480;
+export function frameMetadata(frame: AudioCaptureFrame) {
+  return {
+    frame_index: frame.frame_index,
+    sample_rate_hz: frame.sample_rate_hz,
+    channels: frame.channels,
+    byte_length: frame.data.byteLength,
+  };
+}
 export class Pcm16Packetizer {
   private pending = new Float32Array(0);
   private index = 0;
