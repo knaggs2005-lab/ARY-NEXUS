@@ -190,3 +190,7 @@ The dev-only harness adds a clearly labeled **CHECK RELAY — SYNTHETIC ONLY** c
 **Fresh PHYSICAL_REALTIME_MIC: NOT_RUN — owner Start/speech/pause/Stop has not yet been observed for the revised policy.** The harness is ready for that remaining acceptance gate. Synthetic metrics above must not be reported as owner microphone metrics.
 
 Nexus retains no recordings, raw PCM, base64 audio, transcripts or audio-bearing audit/memory rows in this acceptance path. Physical acceptance intentionally forwards transient microphone PCM to OpenAI; the synthetic checks used silence only. Brain, tools, permissions, memory, provider protocol, playback, wake behavior and later voice stages were not changed. The unrelated `/api/events` 503 “Nexus operational event could not be stored” remains follow-up debt, untouched and unrelated to the batching root cause.
+
+## Overnight voice stack — Stage 2F
+
+The owner supplied a successful 439-frame physical input/VAD/cleanup run after `2bd942c`; input live acceptance is now owner-reported PASS. Added bounded owner-authenticated NDJSON output on the existing relay, current provider audio event/format handling, separate system-rate PCM playback and explicit dev playback control. No unattended physical devices used. 1,640 tests, typecheck and isolated build passed; one live output diagnostic confirmed mono 24 kHz PCM and 640 ms first chunk reception. Physical playback remains pending. See [checkpoint details](../ary-realtime-voice.md).

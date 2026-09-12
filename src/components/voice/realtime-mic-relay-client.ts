@@ -77,6 +77,10 @@ export class RealtimeMicRelayClient {
   constructor(
     private readonly provider: AudioCaptureProvider,
     private readonly request: RelayRequest,
+    private readonly output?: {
+      open(id: string): Promise<void>;
+      close(): Promise<void>;
+    },
   ) {}
 
   snapshot(): MicRelayHealth {
@@ -116,6 +120,8 @@ export class RealtimeMicRelayClient {
       this.relayId = result.relay_id;
       this.health.relay_state = result.relay_state;
       this.health.realtime_state = result.realtime_state;
+      if (this.stopRequested) return;
+      await this.output?.open(this.relayId);
       if (this.stopRequested) return;
       this.accepting = true;
       this.capture = await this.provider.start(
@@ -319,6 +325,7 @@ export class RealtimeMicRelayClient {
         this.health.failure_code ??= "RELAY_STOP_FAILED";
       }
     }
+    await this.output?.close();
     this.health.cleanup_confirmed =
       closed && !this.capture?.health.microphone_active;
     this.health.test_duration_ms = Date.now() - this.startedAt;

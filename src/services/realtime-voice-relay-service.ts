@@ -1,3 +1,4 @@
+import { RealtimeOutputStream } from "./realtime-output-stream";
 import type {
   RealtimeVoiceAudioFrame,
   RealtimeVoiceEvent,
@@ -56,6 +57,7 @@ type RelayEntry = {
   unsubscribe: () => void;
   expiry_timer: ReturnType<typeof setTimeout>;
   finalized: boolean;
+  output: RealtimeOutputStream;
   close_promise: Promise<void> | null;
 };
 
@@ -129,6 +131,11 @@ export class RealtimeVoiceRelayService {
       entry.session = session;
       entry.status = status;
       entry.finalized = false;
+      entry.output = new RealtimeOutputStream(() => {
+        entry.status.failure_code = "OUTPUT_DISCONNECTED_OR_OVERFLOW";
+        this.detach(entry);
+        void this.closeEntry(entry).catch(() => {});
+      });
       entry.close_promise = null;
       entry.unsubscribe = session.onEvent((event) =>
         this.observe(entry, event),
@@ -149,6 +156,10 @@ export class RealtimeVoiceRelayService {
     } finally {
       this.startingUsers.delete(userId);
     }
+  }
+
+  output(userId: string, relayId: string, signal: AbortSignal) {
+    return this.requireEntry(userId, relayId).output.open(signal);
   }
 
   async append(
@@ -242,6 +253,8 @@ export class RealtimeVoiceRelayService {
 
   private observe(entry: RelayEntry, event: RealtimeVoiceEvent) {
     if (entry.finalized) return;
+    entry.output.publish(event);
+    if (entry.finalized) return;
     entry.status.last_event_at = this.now().toISOString();
     entry.status.last_event_type = event.type;
     if (event.type === "state") {
@@ -306,6 +319,7 @@ export class RealtimeVoiceRelayService {
   private detach(entry: RelayEntry) {
     if (entry.finalized) return;
     entry.finalized = true;
+    entry.output.close();
     clearTimeout(entry.expiry_timer);
     entry.unsubscribe();
     this.entries.delete(entry.relay_id);

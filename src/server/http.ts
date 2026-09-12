@@ -87,7 +87,7 @@ export async function handle(
   path: string[],
   schedule?: (work: () => Promise<void>) => void,
   dependencies?: { realtimeRelay?: RealtimeVoiceRelayService },
-) {
+): Promise<Response> {
   try {
     const url = new URL(request.url);
     const method = request.method;
@@ -194,6 +194,19 @@ export async function handle(
       process.env.NODE_ENV === "production"
     )
       throw new AppError("Realtime relay is unavailable in production", 404);
+    if (
+      path[0] === "realtime" &&
+      path[1] === "session" &&
+      path.length === 4 &&
+      path[3] === "output" &&
+      method === "POST"
+    ) {
+      return realtimeRelay().output(
+        repository.userId,
+        z.uuid().parse(path[2]),
+        request.signal,
+      );
+    }
     if (route === "realtime/session/start" && method === "POST") {
       const input = z
         .object({ conversation_id: z.uuid() })

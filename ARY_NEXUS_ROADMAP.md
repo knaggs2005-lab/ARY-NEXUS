@@ -393,3 +393,8 @@ Today it has substantial tested intelligence, internal-action and spatial founda
 ## Bounded implementation note — Connections Control Center V1 (2026-09-11)
 
 Implemented a read-only owner-facing Connections overview derived from the existing ToolDiscoveryService and adapter evidence. It aggregates connection families conservatively, labels configured versus live evidence, preserves existing domain screens, and does not perform automatic provider tests or change integration state. Verification: typecheck passed; full test and production build run after implementation.
+
+## Overnight realtime voice checkpoints (September 12)
+
+- Input gate: owner supplied 439 captured/forwarded frames, both VAD flags, no errors, CLOSED/cleanup true; owner-reported live input PASS.
+- Stage 2F: bounded authenticated output relay and dedicated playback implemented; 1,640 tests, typecheck/build passed; live PCM output verified without speakers. OWNER_PLAYBACK_ACCEPTANCE_PENDING. See [voice checkpoint report](docs/ary-realtime-voice.md). Further overnight stages are explicitly authorized by the current owner prompt; unrelated NEXT 3 is unchanged.

@@ -13,7 +13,11 @@ import { realtimeVoiceInterruption } from "../../domain/realtime-voice";
 
 type OpenAIRealtimeEvent = {
   type: string;
-  session?: { id?: string };
+  session?: {
+    id?: string;
+    audio?: { output?: { format?: { type?: string; rate?: number } } };
+  };
+  response?: { usage?: Record<string, unknown> };
   item_id?: string;
   delta?: string;
   text?: string;
@@ -63,6 +67,7 @@ class Session implements RealtimeVoiceSession {
   state: RealtimeVoiceSession["state"] = "IDLE";
   private closed = false;
   private ready = false;
+  private outputPcm = false;
   private listeners = new Set<(e: RealtimeVoiceEvent) => void>();
   constructor(
     private config: RealtimeVoiceSessionConfig,
@@ -88,6 +93,9 @@ class Session implements RealtimeVoiceSession {
     }
     if (e.type === "session.updated") {
       this.provider_session_id = e.session?.id ?? this.provider_session_id;
+      this.outputPcm =
+        e.session?.audio?.output?.format?.type === "audio/pcm" &&
+        e.session.audio.output.format.rate === 24000;
       this.ready = true;
       this.emit({ type: "state", state: "IDLE" });
       return;
@@ -102,42 +110,32 @@ class Session implements RealtimeVoiceSession {
       this.emit({ type: "state", state: "PROCESSING" });
       return;
     }
-    if (e.type.includes("transcript") && e.delta !== undefined) {
-      this.emit({
-        type: "transcript_delta",
-        turn_id: e.item_id ?? "unknown",
-        text: e.delta,
-      });
-      return;
-    }
-    if (e.type.includes("transcript") && e.text !== undefined) {
-      this.emit({
-        type: "transcript_final",
-        turn_id: e.item_id ?? "unknown",
-        text: e.text,
-        persisted_message_id: null,
-      });
-      return;
-    }
-    if (e.type === "response.audio.delta" && e.audio) {
-      const frame: RealtimeVoiceAudioFrame = {
-        encoding: e.audio_format ?? "base64",
-        sample_rate_hz: e.sample_rate_hz ?? 24000,
-        channels: e.channels ?? 1,
-        data: Uint8Array.from(Buffer.from(e.audio, "base64")),
-      };
+    if (e.type === "response.output_audio.delta" && e.delta) {
       if (
-        !Number.isFinite(frame.sample_rate_hz) ||
-        frame.sample_rate_hz < 8000 ||
-        frame.sample_rate_hz > 96000
+        !this.outputPcm ||
+        e.delta.length > 64000 ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+          e.delta,
+        )
       ) {
         this.emit({
           type: "failure",
           failure: {
             code: "invalid_audio_metadata",
-            message: "Provider audio metadata is invalid",
+            message: "Invalid provider PCM output",
             retryable: false,
-            provider: "openai-realtime",
+          },
+        });
+        return;
+      }
+      const data = Uint8Array.from(Buffer.from(e.delta, "base64"));
+      if (!data.length || data.length % 2) {
+        this.emit({
+          type: "failure",
+          failure: {
+            code: "invalid_audio_frame",
+            message: "Invalid provider PCM output",
+            retryable: false,
           },
         });
         return;
@@ -145,14 +143,14 @@ class Session implements RealtimeVoiceSession {
       this.emit({
         type: "assistant_audio_delta",
         turn_id: e.item_id ?? "unknown",
-        frame,
+        frame: { encoding: "pcm16", sample_rate_hz: 24000, channels: 1, data },
       });
       this.emit({ type: "state", state: "ASSISTANT_SPEAKING" });
       return;
     }
     if (
-      e.type === "response.audio_transcript.delta" ||
-      e.type === "response.text.delta"
+      e.type === "response.output_audio_transcript.delta" ||
+      e.type === "response.output_text.delta"
     ) {
       this.emit({
         type: "assistant_text_delta",
@@ -162,7 +160,11 @@ class Session implements RealtimeVoiceSession {
       return;
     }
     if (e.type === "response.done") {
-      if (e.usage) this.emit({ type: "usage", usage: usage(e.usage) });
+      if (e.response?.usage ?? e.usage)
+        this.emit({
+          type: "usage",
+          usage: usage((e.response?.usage ?? e.usage)!),
+        });
       this.emit({ type: "state", state: "IDLE" });
       return;
     }

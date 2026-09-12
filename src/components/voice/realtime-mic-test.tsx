@@ -4,6 +4,8 @@ import type {
   AudioCaptureFrame,
   AudioCaptureProvider,
 } from "../../domain/audio-capture";
+import { RealtimePlayback } from "./realtime-playback";
+import { RealtimeOutputClient } from "./realtime-output-client";
 import { api } from "../api";
 import { BrowserAudioCaptureProvider } from "../../infrastructure/audio/browser-audio-capture";
 import {
@@ -49,7 +51,7 @@ export function RealtimeMicTest() {
       );
     }
   }
-  async function start(synthetic = false) {
+  async function start(synthetic = false, withPlayback = false) {
     if (
       client.current &&
       ["STARTING", "CAPTURING", "STOPPING"].includes(
@@ -80,9 +82,24 @@ export function RealtimeMicTest() {
         ? "SYNTHETIC SILENCE — microphone not opened"
         : "OWNER MICROPHONE",
     );
+    const playback = withPlayback ? new RealtimePlayback() : undefined;
+    if (playback) {
+      try {
+        await playback.start();
+      } catch {
+        setNotice("Playback unavailable. Check audio permission.");
+        return;
+      }
+    }
+    const output = playback
+      ? new RealtimeOutputClient(api, playback, (code) =>
+          client.current?.fail(code),
+        )
+      : undefined;
     const next = new RealtimeMicRelayClient(
       synthetic ? syntheticProvider : new BrowserAudioCaptureProvider(),
       api,
+      output,
     );
     client.current = next;
     const starting = next.start(conversation);
@@ -172,6 +189,16 @@ export function RealtimeMicTest() {
       >
         CHECK RELAY — SYNTHETIC ONLY
       </button>
+      <button
+        onClick={() => void start(false, true)}
+        disabled={!!busy || !conversation}
+      >
+        START VOICE WITH PLAYBACK
+      </button>
+      <p>
+        Playback test uses your speakers and sends microphone audio to OpenAI.
+        Start only when present. Stop ends both paths.
+      </p>
       <p role="status">Test source: {source}</p>
       {health && (
         <dl
