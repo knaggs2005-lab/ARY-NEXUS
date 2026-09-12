@@ -9,6 +9,8 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
     socket_opened: false,
     session_created: false,
     session_update_sent: false,
+    session_updated: false,
+    provider_error: null as string | null,
     close_code: null as number | null,
     close_reason: "",
     last_event_type: "",
@@ -21,6 +23,7 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
     private model: string,
     private endpoint = `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
     private timeoutMs = 10000,
+    private milestone: (name: string) => void = () => {},
   ) {
     if (!apiKey) throw new Error("AUTHENTICATION_FAILED");
     if (!model) throw new Error("MODEL_UNAVAILABLE");
@@ -28,8 +31,11 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
   async connect(onEvent: (event: Event) => void) {
     await new Promise<void>((resolve, reject) => {
       let ready = false;
+      let failed = false;
       let timer: ReturnType<typeof setTimeout>;
       const fail = (code: string) => {
+        if (failed || ready) return;
+        failed = true;
         clearTimeout(timer);
         this.socket?.close();
         reject(new Error(code));
@@ -41,6 +47,7 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
       this.socket = ws;
       ws.on("open", () => {
         this.diagnostics.socket_opened = true;
+        this.milestone("SOCKET_OPEN");
       });
       ws.on("message", (raw) => {
         let event: Event;
@@ -51,34 +58,67 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
           fail("PROTOCOL_ERROR");
           return;
         }
-        onEvent(event);
+        if (failed) return;
         if (event.type === "error") {
           const err = event.error as
             { code?: string; message?: string } | undefined;
-          this.providerError = `${err?.code ?? "PROVIDER_ERROR"}: ${String(
-            err?.message ?? "Provider rejected request",
-          )
-            .replace(/(?:Bearer|sk-)[^\s]+/gi, "[redacted]")
-            .slice(0, 240)}`;
-        }
-        if (event.type === "session.created") {
-          this.diagnostics.session_created = true;
-          ready = true;
-          clearTimeout(timer);
-          this.diagnostics.session_update_sent = true;
-          this.send({
-            type: "session.update",
-            session: {
-              type: "realtime",
-              modalities: ["text", "audio"],
-              input_audio_format: "pcm16",
-              output_audio_format: "pcm16",
-              turn_detection: { type: "server_vad" },
-              tools: [],
+          this.providerError = this.sanitize(
+            `${err?.code ?? "PROVIDER_ERROR"}: ${err?.message ?? "Provider rejected request"}`,
+          );
+          this.diagnostics.provider_error = this.providerError;
+          onEvent({
+            type: "error",
+            error: {
+              code: this.sanitize(err?.code ?? "PROVIDER_ERROR"),
+              message: this.providerError,
             },
           });
-          resolve();
+          if (!ready) fail(this.providerError);
+          return;
         }
+        if (event.type === "session.created") {
+          if (this.diagnostics.session_created) return;
+          this.diagnostics.session_created = true;
+          this.milestone("SESSION_CREATED");
+          onEvent(event);
+          try {
+            this.send({
+              type: "session.update",
+              session: {
+                type: "realtime",
+                model: this.model,
+                output_modalities: ["audio"],
+                audio: {
+                  input: {
+                    format: { type: "audio/pcm", rate: 24000 },
+                    turn_detection: { type: "server_vad" },
+                  },
+                  output: { format: { type: "audio/pcm", rate: 24000 } },
+                },
+                tools: [],
+              },
+            });
+            this.diagnostics.session_update_sent = true;
+            this.milestone("SESSION_UPDATE_SENT");
+          } catch {
+            fail("CONNECTION_CLOSED");
+          }
+          return;
+        }
+        if (event.type === "session.updated" && !ready) {
+          if (!this.diagnostics.session_update_sent) {
+            fail("PROTOCOL_ERROR");
+            return;
+          }
+          this.diagnostics.session_updated = true;
+          ready = true;
+          clearTimeout(timer);
+          this.milestone("SESSION_UPDATED");
+          onEvent(event);
+          resolve();
+          return;
+        }
+        onEvent(event);
       });
       ws.on("error", () => {
         if (!ready) fail("PROVIDER_UNAVAILABLE");
@@ -93,20 +133,26 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
       });
       ws.on("close", (code, reason) => {
         this.diagnostics.close_code = code;
-        this.diagnostics.close_reason = String(reason)
-          .replace(/[\x00-\x1f\x7f]/g, "")
-          .slice(0, 240);
+        this.diagnostics.close_reason = this.sanitize(String(reason));
         if (!ready)
           fail(
             this.providerError
               ? this.providerError.startsWith("invalid_model")
                 ? `MODEL_UNAVAILABLE ${this.providerError}`
                 : `PROVIDER_UNAVAILABLE ${this.providerError}`
-              : `CONNECTION_CLOSED code=${code} reason=${String(reason).slice(0, 240)}`,
+              : `CONNECTION_CLOSED code=${code} reason=${this.diagnostics.close_reason}`,
           );
         else onEvent({ type: "connection.closed" });
       });
     });
+  }
+  private sanitize(value: string) {
+    return value
+      .split(this.apiKey)
+      .join("[redacted]")
+      .replace(/Bearer\s+[^\s]+|sk-[^\s]+/gi, "[redacted]")
+      .replace(/[\x00-\x1f\x7f]/g, "")
+      .slice(0, 240);
   }
   send(command: { type: string; [key: string]: unknown }) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN)

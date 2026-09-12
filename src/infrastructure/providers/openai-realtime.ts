@@ -82,8 +82,12 @@ class Session implements RealtimeVoiceSession {
   }
   private receive(e: OpenAIRealtimeEvent) {
     if (this.closed) return;
-    if (e.type === "session.created" || e.type === "session.ready") {
+    if (e.type === "session.created") {
       this.provider_session_id = e.session?.id ?? null;
+      return;
+    }
+    if (e.type === "session.updated") {
+      this.provider_session_id = e.session?.id ?? this.provider_session_id;
       this.ready = true;
       this.emit({ type: "state", state: "IDLE" });
       return;

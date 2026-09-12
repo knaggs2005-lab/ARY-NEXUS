@@ -10,16 +10,16 @@ async function main() {
     );
     return;
   }
-  const t = new OpenAIRealtimeWebSocketTransport(key, model);
+  const t = new OpenAIRealtimeWebSocketTransport(
+    key,
+    model,
+    undefined,
+    10000,
+    console.log,
+  );
   try {
     console.log("CONNECTING");
-    await t.connect((e) => {
-      if (e.type === "session.created") console.log("SESSION_CREATED observed");
-      if (e.type === "session.updated") console.log("SESSION_UPDATED observed");
-      if (e.type === "error")
-        console.log("PROVIDER_ERROR", JSON.stringify((e as any).error));
-    });
-    console.log("SOCKET_OPEN");
+    await t.connect(() => {});
     await t.close();
     console.log("PASS");
   } catch (e) {
@@ -29,6 +29,8 @@ async function main() {
     console.log(`close_reason: ${d.close_reason || "unknown"}`);
     console.log(`last_event: ${d.last_event_type || "none"}`);
     process.exitCode = 1;
+  } finally {
+    await t.close();
   }
 }
 main();

@@ -81,6 +81,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     const bytes = Uint8Array.from([0, 1, 2, 255]);
     s.sendAudio(frame(bytes));
     expect(t.sent).toEqual([
@@ -94,6 +96,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     const bytes = Uint8Array.from([16, 32, 48, 64]);
     s.sendAudio(frame(bytes.buffer));
     expect(t.sent).toEqual([
@@ -107,6 +111,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     const backing = Uint8Array.from([9, 10, 11, 12]);
     const view = backing.subarray(1, 3);
     s.sendAudio(frame(view));
@@ -123,6 +129,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     expect(() => s.sendAudio({ ...frame(), encoding: "pcm" })).toThrow(
       "Unsupported audio frame format",
     );
@@ -143,6 +151,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     t.send = () => {
       throw new Error("transport failed");
     };
@@ -155,6 +165,8 @@ describe("OpenAI realtime adapter correction", () => {
       config,
     );
     t.emit({ type: "session.created", session: { id: "provider" } });
+    expect(() => s.sendAudio(frame())).toThrow("not ready");
+    t.emit({ type: "session.updated", session: { id: "provider" } });
     t.emit({ type: "connection.closed" });
     expect(() =>
       s.sendAudio({
@@ -174,7 +186,7 @@ describe("OpenAI realtime adapter correction", () => {
     const s = await new OpenAIRealtimeSessionProvider(() => t).createSession(
       config,
     );
-    t.emit({ type: "session.ready", session: { id: "provider" } });
+    t.emit({ type: "session.created", session: { id: "provider" } });
     expect(s.nexus_conversation_id).toBe("c");
     expect(s.provider_session_id).toBe("provider");
   });
