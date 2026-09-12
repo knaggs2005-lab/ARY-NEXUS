@@ -90,3 +90,7 @@ GPT Live project/model access must be enabled and verified. Twilio KYC/complianc
 ## Stage 1 — contracts only
 
 Added `src/domain/realtime-voice.ts` with provider-agnostic session, turn, event, interruption, audio, usage, failure, capability, availability, and fallback contracts. Nexus conversation identity is distinct from provider session identity; interruption explicitly cannot cancel external effects; partial transcripts can remain ephemeral. Added pure contract tests in `tests/realtime-voice-contract.test.ts`. No provider, socket, endpoint, codec, UI, environment, or existing voice behavior was changed.
+
+## Stage 2A — offline OpenAI adapter skeleton
+
+Added `src/infrastructure/providers/openai-realtime.ts`. It contains an injected fake transport boundary, OpenAI-specific event translation kept inside infrastructure, canonical state/transcript/audio/interruption/usage/failure mapping, ID separation, validation, and idempotent cleanup. The provider reports unavailable unless an injected transport is supplied. No network, credentials, sockets, UI, Brain, actions, permissions, Twilio, or fallback behavior were added.
