@@ -4,7 +4,10 @@ import type { WakeWordService } from "./wake-word-service";
 export type VoiceActivationState =
   "SLEEPING" | "WAKING" | "ACTIVE" | "RETURNING_TO_SLEEP" | "FAILED";
 export interface RealtimeVoiceActivator {
-  start(input: { wake: WakeWordDetection }): Promise<void>;
+  start(input: {
+    wake: WakeWordDetection;
+    conversation_id: string;
+  }): Promise<void>;
   stop(): Promise<void>;
   onEnded(handler: (failure?: Error) => void): () => void;
 }
@@ -30,6 +33,7 @@ export class VoiceActivationService {
       health: () => { state: string };
     },
     private readonly activator: RealtimeVoiceActivator,
+    private readonly conversationId: string,
   ) {
     this.offWake = wake.onEvent((event) => {
       void this.handleWake(event.detection);
@@ -56,7 +60,10 @@ export class VoiceActivationService {
     this.publish("voice.activation.requested");
     try {
       await this.wake.pause();
-      await this.activator.start({ wake: detection });
+      await this.activator.start({
+        wake: detection,
+        conversation_id: this.conversationId,
+      });
       this.current = "ACTIVE";
       this.publish("voice.activation.started");
     } catch (error) {

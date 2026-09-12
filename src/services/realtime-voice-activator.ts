@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type {
   RealtimeVoiceSession,
   RealtimeVoiceSessionProvider,
@@ -26,33 +25,45 @@ export class OpenAIRealtimeVoiceActivator implements RealtimeVoiceActivator {
       this.ended.delete(handler);
     };
   }
-  async start(input: { wake: WakeWordDetection }): Promise<void> {
-    if (this.active) return;
+  private inFlight: Promise<void> | null = null;
+  async start(input: {
+    wake: WakeWordDetection;
+    conversation_id: string;
+  }): Promise<void> {
+    if (!input.conversation_id.trim())
+      throw new Error("A Nexus conversation_id is required");
+    if (this.current === "CONNECTING" || this.current === "ACTIVE")
+      return this.inFlight ?? Promise.resolve();
     this.current = "CONNECTING";
     this.notified = false;
-    try {
-      const session = await this.provider.createSession({
-        user_id: this.userId,
-        conversation_id: randomUUID(),
-        classic_fallback_available: false,
-      });
-      this.active = session;
-      this.current = "ACTIVE";
-      session.onEvent((event) => {
-        if (event.type === "failure")
-          void this.finish(new Error(event.failure.message));
-        else if (event.type === "state" && event.state === "CLOSED")
-          void this.finish();
-      });
-    } catch (error) {
-      this.current = "FAILED";
-      this.notify(
-        error instanceof Error
-          ? error
-          : new Error("Realtime activation failed"),
-      );
-      throw error;
-    }
+    this.inFlight = (async () => {
+      try {
+        const session = await this.provider.createSession({
+          user_id: this.userId,
+          conversation_id: input.conversation_id,
+          classic_fallback_available: false,
+        });
+        this.active = session;
+        this.current = "ACTIVE";
+        session.onEvent((event) => {
+          if (event.type === "failure")
+            void this.finish(new Error(event.failure.message));
+          else if (event.type === "state" && event.state === "CLOSED")
+            void this.finish();
+        });
+      } catch (error) {
+        this.current = "FAILED";
+        this.notify(
+          error instanceof Error
+            ? error
+            : new Error("Realtime activation failed"),
+        );
+        throw error;
+      } finally {
+        this.inFlight = null;
+      }
+    })();
+    return this.inFlight;
   }
   async stop() {
     const session = this.active;

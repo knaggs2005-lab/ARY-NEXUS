@@ -49,7 +49,7 @@ function fakes() {
 describe("VoiceActivationService", () => {
   it("pauses before activation and resumes on end", async () => {
     const f = fakes();
-    const s = new VoiceActivationService(f.wake, f.activator);
+    const s = new VoiceActivationService(f.wake, f.activator, "conversation");
     f.fire();
     await new Promise((r) => setTimeout(r, 0));
     expect(f.calls.slice(0, 2)).toEqual(["pause", "start"]);
@@ -61,7 +61,7 @@ describe("VoiceActivationService", () => {
   });
   it("ignores duplicate wakes while active", async () => {
     const f = fakes();
-    new VoiceActivationService(f.wake, f.activator);
+    new VoiceActivationService(f.wake, f.activator, "conversation");
     f.fire();
     f.fire();
     await new Promise((r) => setTimeout(r, 0));
@@ -72,7 +72,7 @@ describe("VoiceActivationService", () => {
     f.activator.start = async () => {
       throw new Error("offline");
     };
-    const s = new VoiceActivationService(f.wake, f.activator);
+    const s = new VoiceActivationService(f.wake, f.activator, "conversation");
     f.fire();
     await new Promise((r) => setTimeout(r, 0));
     expect(s.state()).toBe("SLEEPING");
