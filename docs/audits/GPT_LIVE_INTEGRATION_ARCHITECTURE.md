@@ -118,3 +118,7 @@ Added provider-agnostic local wake-word contracts and `WakeWordService` lifecycl
 ## Stage 2D-A — wake to realtime activation bridge
 
 Added `VoiceActivationService` as a narrow orchestration boundary. It pauses local wake listening before requesting an injected realtime activator, ignores duplicate wakes, tracks sleeping/waking/active/failure states, and resumes local listening after activation failure or session end. It has no provider, audio, Brain, tool, memory, or external-system knowledge.
+
+## Stage 2D-B — concrete realtime session activator
+
+Added a server-side `OpenAIRealtimeVoiceActivator` that reuses the existing `RealtimeVoiceSessionProvider`, waits for provider session creation/readiness, enforces one active session, and reports exactly-once end/failure lifecycle. Credentials and provider construction remain server-side. No microphone audio, Brain, memory, tools, or provider prompts are sent in this stage.
