@@ -189,7 +189,7 @@ export class ToolDiscoveryService {
         // concurrent searches share in-flight work. Never execute discovered tools.
         if (queryVector && this.embeddings.embedMany) {
           try {
-            for (let start = 0; start < catalog.length; start += 32) {
+            const warm = async (start: number) => {
               const missing = catalog
                 .slice(start, start + 32)
                 .map((t) => ({
@@ -200,8 +200,8 @@ export class ToolDiscoveryService {
                   const cached = vectors.get(key);
                   return !cached || Date.now() - cached.at > 900000;
                 });
-              if (!missing.length) continue;
-              const batch = this.embeddings.embedMany(
+              if (!missing.length) return;
+              const batch = this.embeddings.embedMany!(
                 missing.map((d) => d.text),
               );
               const pending = missing.map(({ key }, index) => {
@@ -222,7 +222,12 @@ export class ToolDiscoveryService {
                 return cached.vector;
               });
               await Promise.all(pending);
-            }
+            };
+            // Four bounded requests at a time, matching the former descriptor concurrency.
+            for (let start = 0; start < catalog.length; start += 128)
+              await Promise.all(
+                [0, 32, 64, 96].map((offset) => warm(start + offset)),
+              );
           } catch {
             // Do not amplify one failed batch into a catalog of individual retries.
             queryVector = null;

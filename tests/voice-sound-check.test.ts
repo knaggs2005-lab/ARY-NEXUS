@@ -54,6 +54,9 @@ it.each([
     expect(discovery).toHaveBeenCalledTimes(discover ? 1 : 0);
     expect(retrieval).toHaveBeenCalledTimes(2); // Response context + existing extraction reconciliation.
     expect(reason).toHaveBeenCalledOnce();
+    expect(reason.mock.calls[0][0].response_style).toBe(
+      modality === "voice" ? "spoken" : undefined,
+    );
     expect(events.some((e) => e.type === "response")).toBe(true);
     expect(events.at(-1)?.type).toBe("complete");
     expect((await repo.list("messages")).map((m) => m.role)).toEqual([
@@ -62,3 +65,65 @@ it.each([
     ]);
   },
 );
+
+it("starts capability lookup while memory retrieval is pending and waits for both", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const memory = new MemoryService(repo, new LocalEmbeddingProvider());
+  vi.spyOn(memory, "getRelevantMemories").mockImplementation(async () => {
+    await gate;
+    return [];
+  });
+  const discovery = vi.fn(async () => []);
+  const llm = new MockLanguageModel();
+  const reason = vi.spyOn(llm, "reason");
+  const brain = new AryBrainService(
+    repo,
+    memory,
+    new EntityService(repo),
+    llm,
+    new ActionService(repo),
+    undefined,
+    undefined,
+    undefined,
+    discovery,
+  );
+  const work = (async () => {
+    for await (const _event of brain.respond({
+      input: "Which tools can you use?",
+      modality: "voice",
+    })) {
+    }
+  })();
+  try {
+    await vi.waitFor(() => expect(discovery).toHaveBeenCalledOnce());
+    expect(reason).not.toHaveBeenCalled();
+  } finally {
+    release();
+  }
+  await work;
+  expect(reason).toHaveBeenCalledOnce();
+});
+it("reports response failure before running extraction while preserving the extraction job", async () => {
+  const memory = new MemoryService(repo, new LocalEmbeddingProvider());
+  const llm = new MockLanguageModel();
+  vi.spyOn(llm, "reason").mockRejectedValue(Error("provider failure"));
+  const extract = vi.spyOn(llm, "extractMemories");
+  const brain = new AryBrainService(
+    repo,
+    memory,
+    new EntityService(repo),
+    llm,
+    new ActionService(repo),
+  );
+  const turn = brain.respond({ input: "Hello Ary", modality: "voice" });
+  expect((await turn.next()).value?.type).toBe("entities");
+  expect((await turn.next()).value?.type).toBe("error");
+  expect(extract).not.toHaveBeenCalled();
+  for await (const _event of turn) {
+  }
+  expect(extract).toHaveBeenCalledOnce();
+  expect(await repo.list("extraction_jobs")).toHaveLength(1);
+});

@@ -261,3 +261,108 @@ it("uses the same interrupt signal for speech started while extraction is pendin
   await bridge.idle();
   bridge.close();
 });
+it("speaks a completed Brain sentence before the final response without replay", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  let extraction = false;
+  const f = fixture(async function* (_input: unknown, options: any) {
+    options.onDelta("First answer. ");
+    await gate;
+    options.onDelta("More detail");
+    yield {
+      type: "response",
+      message: { content: "First answer. More detail" },
+    };
+    extraction = true;
+    yield { type: "complete" };
+  });
+  f.emit(final());
+  try {
+    await vi.waitFor(() =>
+      expect(f.session.speakText).toHaveBeenCalledExactlyOnceWith(
+        "First answer.",
+      ),
+    );
+  } finally {
+    release();
+  }
+  await f.bridge.idle();
+  expect(f.session.speakText.mock.calls.map((a: any[]) => a[0])).toEqual([
+    "First answer.",
+    "More detail",
+  ]);
+  expect(extraction).toBe(true);
+  f.bridge.close();
+});
+it("does not speak unfinished streamed words until final response", async () => {
+  const f = fixture(async function* (_input: unknown, options: any) {
+    options.onDelta("An unfinished");
+    await Promise.resolve();
+    expect(f.session.speakText).not.toHaveBeenCalled();
+    yield { type: "response", message: { content: "An unfinished" } };
+  });
+  f.emit(final());
+  await f.bridge.idle();
+  expect(f.session.speakText).toHaveBeenCalledExactlyOnceWith("An unfinished");
+  f.bridge.close();
+});
+it("rejects a final stream mismatch without replaying a different answer", async () => {
+  const f = fixture(async function* (_input: unknown, options: any) {
+    options.onDelta("Partial");
+    yield { type: "response", message: { content: "Different answer" } };
+  });
+  f.emit(final());
+  await f.bridge.idle();
+  expect(f.session.speakText).not.toHaveBeenCalled();
+  expect(f.events).toContainEqual(
+    expect.objectContaining({
+      type: "failure",
+      failure: expect.objectContaining({ code: "BRAIN_STREAM_MISMATCH" }),
+    }),
+  );
+});
+it("interruption fences late streamed sentences", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  const f = fixture(async function* (_input: unknown, options: any) {
+    options.onDelta("First. ");
+    await gate;
+    options.onDelta("Late. ");
+    yield { type: "response", message: { content: "First. Late." } };
+  });
+  f.emit(final());
+  await vi.waitFor(() => expect(f.session.speakText).toHaveBeenCalledOnce());
+  f.emit({ type: "speech_start", turn_id: "next" });
+  release();
+  await f.bridge.idle();
+  expect(f.session.speakText).toHaveBeenCalledExactlyOnceWith("First.");
+  f.bridge.close();
+});
+it("failure stops queued speech before extraction completes", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  const f = fixture(async function* (_input: unknown, options: any) {
+    options.onDelta("Unfinished");
+    yield { type: "error", error: "provider failed" };
+    await gate;
+    yield { type: "complete" };
+  });
+  f.emit(final());
+  try {
+    await vi.waitFor(() =>
+      expect(f.events).toContainEqual(
+        expect.objectContaining({ type: "failure" }),
+      ),
+    );
+  } finally {
+    release();
+  }
+  await f.bridge.idle();
+  expect(f.session.speakText).not.toHaveBeenCalled();
+});

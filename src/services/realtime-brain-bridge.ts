@@ -1,3 +1,4 @@
+import { takeSpeechSegments } from "../components/voice/speech-queue";
 import type { AryBrainService } from "./ary-brain-service";
 import type {
   RealtimeVoiceSession,
@@ -97,6 +98,25 @@ export class RealtimeBrainBridge {
     let speechTask: Promise<void> | undefined;
     let canonical: string | undefined,
       failed = false;
+    let streamed = "",
+      buffer = "";
+    const enqueue = (text: string) => {
+      speechTask = (speechTask ?? Promise.resolve())
+        .then(async () => {
+          if (this.closed || abort.signal.aborted) return;
+          if (this.speech) await this.speech(text, abort.signal);
+          else this.session.speakText!(text);
+        })
+        .catch(() => {
+          if (!abort.signal.aborted && !this.closed)
+            this.fail("BRAIN_VOICE_FAILED");
+        });
+    };
+    const flush = (final = false) => {
+      const next = takeSpeechSegments(buffer, final);
+      buffer = next.rest;
+      next.segments.forEach(enqueue);
+    };
     this.publish({ type: "state", state: "PROCESSING" });
     try {
       for await (const event of this.brain.respond(
@@ -107,6 +127,17 @@ export class RealtimeBrainBridge {
         },
         {
           signal: abort.signal,
+          onDelta: (delta) => {
+            if (this.closed || abort.signal.aborted || canonical !== undefined)
+              return;
+            if (streamed.length + delta.length > 4000) {
+              this.fail("CANONICAL_SPEECH_TOO_LONG");
+              return;
+            }
+            streamed += delta;
+            buffer += delta;
+            flush();
+          },
           onPresence: (event) => {
             if (!this.closed && event.state)
               this.publish({ type: "state", state: "PROCESSING" });
@@ -124,19 +155,21 @@ export class RealtimeBrainBridge {
             this.fail("CANONICAL_SPEECH_TOO_LONG");
             continue;
           }
-          // The response is already committed by Brain. Start its speech now;
-          // keep consuming the same generator so durable extraction still finishes.
+          // Deltas come from the same Brain/provider stream used by classic voice.
+          // Require the final authoritative response to agree; never replay it.
           clearTimeout(timer);
-          speechTask = (
-            this.speech
-              ? this.speech(canonical, abort.signal)
-              : Promise.resolve(this.session.speakText!(canonical))
-          ).catch(() => {
-            if (!abort.signal.aborted && !this.closed)
-              this.fail("BRAIN_VOICE_FAILED");
-          });
+          if (streamed) {
+            if (streamed.trim() !== canonical.trim()) {
+              this.fail("BRAIN_STREAM_MISMATCH");
+              continue;
+            }
+            flush(true);
+          } else enqueue(canonical);
         }
-        if (event.type === "error") failed = true;
+        if (event.type === "error") {
+          failed = true;
+          this.fail("BRAIN_VOICE_FAILED");
+        }
         // Brain remains responsible for its delta/response/complete order, message writes and extraction.
       }
       if (this.closed || abort.signal.aborted) return;

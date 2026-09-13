@@ -558,3 +558,41 @@ it("concurrent discovery shares an in-flight descriptor batch", async () => {
     true,
   );
 });
+it("warms large catalogs with at most four concurrent bounded batches", async () => {
+  const f = discovery(true);
+  const base = await f.service.catalog();
+  const example = base.find((t) => t.name === "task.inspect")!;
+  vi.spyOn(f.service, "catalog").mockResolvedValue(
+    Array.from({ length: 150 }, (_, i) => ({
+      ...example,
+      id: `parallel${i}`,
+      name: `parallel${i}`,
+    })),
+  );
+  const original = f.embedMany.getMockImplementation()!;
+  let release!: () => void,
+    active = 0,
+    peak = 0;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.embedMany.mockImplementation(async (texts) => {
+    active++;
+    peak = Math.max(peak, active);
+    await gate;
+    active--;
+    return original(texts);
+  });
+  const pending = f.service.search({ query: "inspect task" });
+  try {
+    await vi.waitFor(() => expect(f.embedMany).toHaveBeenCalledTimes(4));
+  } finally {
+    release();
+  }
+  await pending;
+  expect(f.embedMany).toHaveBeenCalledTimes(5);
+  expect(peak).toBe(4);
+  expect(f.embedMany.mock.calls.every(([texts]) => texts.length <= 32)).toBe(
+    true,
+  );
+});

@@ -493,3 +493,18 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 
 - Short-answer live variant completed: first audio 5,347 ms, 216,000 bytes, extraction
   complete, temporary fixtures removed. Physical latency retest still pending.
+
+### Streaming spoken answers and parallel context — September 13
+
+- Realtime consumes the existing canonical Brain text stream and starts complete
+  sentences before final response; retains final-match checking, cancellation,
+  failure stop, normal message/extraction persistence and existing tool authority.
+- Memory/capability lookups overlap; descriptor batches run at most four concurrently.
+  Voice-only concise response style preserves evidence/approval caveats. Models unchanged.
+- Live synthetic capability question: first audio 3,214 ms; simple turn 3,131 ms; both
+  playback scheduling/extraction PASS. Near-instant NOT achieved; physical STT latency
+  unmeasured, prior longer-output buffering remains a limitation.
+- Typecheck/production build PASS; same four baseline formatting warnings. DONE /
+  unrelated NEXT 3 unchanged. [Details](docs/ary-realtime-voice.md#streaming-spoken-answers-and-parallel-context--september-13-2026).
+
+- Fresh full validation: **1,716 tests / 107 files PASS**.

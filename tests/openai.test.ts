@@ -329,3 +329,14 @@ it("bounds embedding batches before network and accepts empty batches locally", 
   await expect(provider.embedMany(["x".repeat(8001)])).rejects.toThrow();
   expect(call).not.toHaveBeenCalled();
 });
+it("includes spoken style only for voice context without dropping evidence", () => {
+  expect(reasoningPayload(context)).not.toHaveProperty("response_style");
+  expect(
+    reasoningPayload({ ...context, response_style: "spoken" }),
+  ).toMatchObject({
+    response_style: "spoken",
+    input: context.input,
+    memories: [],
+    history: [],
+  });
+});

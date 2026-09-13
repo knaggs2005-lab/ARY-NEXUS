@@ -14,6 +14,7 @@ export interface EmbeddingProvider {
   ): Promise<number[][]>;
 }
 export interface BrainContext {
+  response_style?: "spoken";
   capabilities?: import("./models").Json[];
   entity_resolutions?: EntityResolution[];
   input: string;

@@ -450,3 +450,41 @@ Short-answer live variant PASS: canonical response 4,749 ms, first audio 5,347 m
 extraction. Temporary local fixtures were removed. This does not erase the longer-answer
 backpressure failure above. Owner should refresh and start a new voice session to use
 the restarted server and compare the same spoken question.
+
+## Streaming spoken answers and parallel context — September 13, 2026
+
+Supersedes the earlier completed-response-only speech delivery note: Realtime voice now
+consumes the SAME Brain `onDelta` stream already supported by classic voice and ModelRouter.
+It reuses the existing speech-segmentation helper and serial speech queue; complete
+sentences may play before the final assistant message is persisted. It never reasons
+independently or executes tools. Unfinished text is held until a sentence boundary/final
+response. Final text must match accumulated provider deltas; mismatch fails without
+replaying a different answer. Bounds, interruption/late-output fencing and extraction
+remain. Brain reports response failure before extraction so queued speech stops promptly.
+Already-heard partial speech cannot be retracted if a later generation fails; it is not
+represented as a successful final answer. Existing ModelRouter suppresses fallback after
+partial streaming output. Non-streaming/internal-action replies retain final-response
+delivery.
+
+Independent memory retrieval and capability discovery now run concurrently; reasoning
+still awaits both. Cold descriptor batches warm at most four requests at a time, each
+at most 32 descriptions, with the existing cache/privacy/action guards. Shared reasoning
+payload carries `response_style: spoken` for voice only: direct short natural answers,
+while retaining citations, uncertainty and approval requirements; explicit requests for
+detail still receive detail. No model identity, VAD, schema or permission changes.
+
+Live isolated capability-question test: canonical response 3,477 ms; first audio
+3,214 ms (before final response); 200 chunks / 948,000 bytes; complete playback scheduling
+and extraction PASS. Simple sound-check test: canonical response 2,848 ms; first audio
+3,131 ms; 19 chunks / 88,800 bytes; extraction PASS. Simple-turn reasoning alone took
+2,457 ms. These are synthetic-final-transcript measurements, not physical STT/end-of-speech
+latency. Near-instant/subsecond response is NOT achieved. Both runs use existing models,
+no hardware, and isolated temporary storage cleaned afterward. Prior variable longer-answer
+backpressure is not declared fixed by these passing runs.
+
+Production build/access checks and typecheck PASS; format check retains the same four
+baseline warnings. Tests cover parallel context gating, four-batch concurrency, spoken
+context scope, sentence streaming, no duplicate final speech, partial-word buffering,
+final mismatch, interruption, and response failure before extraction.
+
+- Fresh full validation: **1,716 tests / 107 files PASS**.

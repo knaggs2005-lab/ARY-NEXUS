@@ -267,18 +267,6 @@ export class AryBrainService {
           );
           await phase("retrieving", "Retrieving relevant memory");
           let retrievalDegraded = false;
-          const retrieved = await this.memories.getRelevantMemories(
-            input.input,
-            8,
-            resolved.map((entity) => entity.id),
-            [...ambiguousIds],
-            {
-              conversationId: conversation.id,
-              onDegraded: () => {
-                retrievalDegraded = true;
-              },
-            },
-          );
           // A voice sound check still uses canonical memory/reasoning, but does not
           // need a cold tool-catalog semantic index. Only complete, benign checks
           // match; compound requests and real capability questions keep discovery.
@@ -287,15 +275,32 @@ export class AryBrainService {
             /^(?:(?:hey|hi|hello)[,! ]+)?(?:ary[,! ]+)?(?:can you (?:hear me|speak|talk)(?: now)?|are you (?:there|listening)|is (?:my|the) (?:mic|microphone) working)[.!?]*(?:\s*(?:please )?(?:answer|respond)(?: briefly| in (?:one|a) (?:short )?sentence))?[.!?]*$/i.test(
               input.input.trim(),
             );
-          const capabilities =
+          // Independent read-only context sources; reasoning still awaits both.
+          const [retrieved, capabilities] = await Promise.all([
+            this.memories.getRelevantMemories(
+              input.input,
+              8,
+              resolved.map((entity) => entity.id),
+              [...ambiguousIds],
+              {
+                conversationId: conversation.id,
+                onDegraded: () => {
+                  retrievalDegraded = true;
+                },
+              },
+            ),
             !soundCheck &&
             this.discoverCapabilities &&
             /can you|can ary|which tool|capabilit|how (?:can|do)|help me/i.test(
               input.input,
             )
-              ? await this.discoverCapabilities(input.input).catch(() => [])
-              : [];
+              ? this.discoverCapabilities(input.input).catch(() => [])
+              : [],
+          ]);
           const context = {
+            ...(input.modality === "voice"
+              ? { response_style: "spoken" as const }
+              : {}),
             capabilities,
             entity_resolutions: resolution.resolutions,
             input: input.input,
@@ -420,6 +425,15 @@ export class AryBrainService {
         "Could not persist response status; memory extraction will still be attempted.",
       );
     }
+    // Stop streamed playback on response failure before slow extraction runs.
+    if (responseError && !options.signal?.aborted)
+      yield {
+        type: "error",
+        error:
+          responseError instanceof AppError
+            ? responseError.message
+            : "Response failed. Your message was saved; check Memory review for extraction status.",
+      };
     try {
       await this.actions.run(
         "memory.extract",
@@ -466,14 +480,6 @@ export class AryBrainService {
         );
       }
     }
-    if (responseError && !options.signal?.aborted)
-      yield {
-        type: "error",
-        error:
-          responseError instanceof AppError
-            ? responseError.message
-            : "Response failed. Your message was saved; check Memory review for extraction status.",
-      };
     await bus.presence(
       {
         operation: sourceId,
