@@ -209,3 +209,55 @@ it("a newer turn fences an older final transcript still waiting to enter Brain",
   expect(f.brain.respond.mock.calls[0][0]).toMatchObject({ input: "new" });
   f.bridge.close();
 });
+
+it("speaks the committed response before slow extraction completes while still draining Brain", async () => {
+  let release!: () => void;
+  const wait = new Promise<void>((r) => (release = r));
+  let extractionStarted = false,
+    extractionFinished = false;
+  const f = fixture(async function* () {
+    yield { type: "response", message: { content: "Committed answer" } };
+    extractionStarted = true;
+    await wait;
+    extractionFinished = true;
+    yield { type: "complete", saved_memory_ids: ["preserved"], warnings: [] };
+  });
+  f.emit(final());
+  await vi.waitFor(() => expect(extractionStarted).toBe(true));
+  expect(f.session.speakText).toHaveBeenCalledExactlyOnceWith(
+    "Committed answer",
+  );
+  expect(extractionFinished).toBe(false);
+  release();
+  await f.bridge.idle();
+  expect(extractionFinished).toBe(true);
+  f.bridge.close();
+});
+
+it("uses the same interrupt signal for speech started while extraction is pending", async () => {
+  let release!: () => void, speechSignal: AbortSignal | undefined;
+  const wait = new Promise<void>((r) => (release = r));
+  const f = fixture(async function* () {
+    yield { type: "response", message: { content: "Answer" } };
+    await wait;
+    yield { type: "complete" };
+  });
+  f.bridge.close();
+  const bridge = new RealtimeBrainBridge(
+    f.session,
+    f.brain,
+    "canonical",
+    () => {},
+    undefined,
+    async (_text, signal) => {
+      speechSignal = signal;
+    },
+  );
+  f.emit(final());
+  await vi.waitFor(() => expect(speechSignal).toBeDefined());
+  f.emit({ type: "speech_start", turn_id: "new" });
+  expect(speechSignal?.aborted).toBe(true);
+  release();
+  await bridge.idle();
+  bridge.close();
+});

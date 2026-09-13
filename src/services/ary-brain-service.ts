@@ -279,7 +279,16 @@ export class AryBrainService {
               },
             },
           );
+          // A voice sound check still uses canonical memory/reasoning, but does not
+          // need a cold tool-catalog semantic index. Only complete, benign checks
+          // match; compound requests and real capability questions keep discovery.
+          const soundCheck =
+            input.modality === "voice" &&
+            /^(?:(?:hey|hi|hello)[,! ]+)?(?:ary[,! ]+)?(?:can you (?:hear me|speak|talk)(?: now)?|are you (?:there|listening)|is (?:my|the) (?:mic|microphone) working)[.!?]*(?:\s*(?:please )?(?:answer|respond)(?: briefly| in (?:one|a) (?:short )?sentence))?[.!?]*$/i.test(
+              input.input.trim(),
+            );
           const capabilities =
+            !soundCheck &&
             this.discoverCapabilities &&
             /can you|can ary|which tool|capabilit|how (?:can|do)|help me/i.test(
               input.input,

@@ -334,3 +334,44 @@ STOPPED/CLOSED, microphone false, cleanup confirmed. No physical mic was opened.
 verify microphone false, CLOSED/STOPPED, counters stable and cleanup confirmed. The
 prior 31-frame BACKPRESSURE_LIMIT report has not been overwritten with a hardware
 success claim. No wake/model installation or next milestone was started.
+
+## Spoken-answer delay correction — September 13, 2026
+
+The owner's Safari test exercised the physical microphone: 614 captured and forwarded
+frames, 589,440 bytes, 41 batches, 24 kHz mono/960-byte frames, both VAD flags, no relay
+failure, CLOSED and cleanup confirmed. Playback received **zero chunks / zero bytes**.
+This verifies the repaired physical input transport, not spoken output.
+
+The corresponding server log showed final speech reaching canonical Brain/entity
+resolution, six embedding calls before the owner stopped, no reasoning response before
+stop, then 127 further embedding calls and extraction. Source inspection identified
+the broad `can you` capability-discovery trigger: a sound check can await a cold semantic
+index of up to 180 tool descriptors. Separately, the Realtime bridge buffered Brain's
+committed response until its entire generator (including extraction) finished.
+
+Narrow changes:
+
+- Complete benign voice sound checks (for example, “Ary, can you hear me? Answer
+  briefly.”) omit unnecessary tool discovery. They still use the same authenticated
+  Brain, memory retrieval, configured reasoning model, message storage, and extraction.
+  Compound requests, real capability questions, and text behavior keep existing
+  discovery. No canned reply, alternate Brain, model change, or permission bypass.
+- The voice bridge starts speaking at the canonical `response` event and continues
+  consuming the same generator for extraction. It does not speak speculative deltas.
+  The existing interruption signal cancels speech, and the canonical-response deadline
+  ends when that committed response arrives. Extraction is not deleted or duplicated.
+- The harness now clearly distinguishes input-only testing from Brain voice/playback.
+
+Fresh verification: **1,698 tests / 107 files PASS**, typecheck PASS, isolated production
+build PASS, production `/mic-test` 404 / cross-origin voice POST 403 PASS, diff check
+PASS. Formatting reports only the same four untouched baseline warnings.
+
+`npx tsx scripts/evaluate-realtime-brain-live.ts` passed using the configured real
+`gpt-5.6-sol` Brain and Realtime output, an injected synthetic final transcript, isolated
+local repository, and silent playback scheduling: canonical response **1,652 ms**;
+first provider audio **2,357 ms**; **18 chunks / 84,000 bytes**; zero tool-catalog
+searches; one assistant message; extraction completed. Fixtures were removed. This is
+not a measured Supabase-owner round-trip or physical speaker test. No microphone or
+speaker was activated by the diagnostic. Owner spoken-playback acceptance remains
+pending. General cold tool discovery latency is not redesigned by this correction.
+The separate event-storage 503 and unrelated systems remain untouched.

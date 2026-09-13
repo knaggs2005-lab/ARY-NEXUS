@@ -448,3 +448,20 @@ Implemented a read-only owner-facing Connections overview derived from the exist
   and unrelated NEXT 3 preserved; no new milestone started.
 - The separate `/api/events` 503 storage failure was observed and intentionally
   untouched. [Detailed evidence and harness](docs/ary-realtime-voice.md#realtime-http-hot-path-correction--september-12-2026).
+
+### Spoken-answer delay correction — September 13
+
+- Owner Safari input verified after the hot-path fix: 614/614 frames, 589,440 bytes,
+  VAD start/end true, no failure, CLOSED/cleanup true. Playback received zero audio;
+  full physical spoken conversation is still not accepted.
+- Narrow fix: explicit benign voice sound checks retain canonical memory/reasoning
+  while avoiding cold tool-catalog discovery; committed responses now begin speech
+  before the existing extraction generator finishes. Tool requests, actions,
+  permissions, models and memory authority preserved.
+- Live isolated synthetic Brain + Realtime speech PASS: response 1,652 ms, first audio
+  2,357 ms, 18 chunks / 84,000 bytes; extraction completed; no hardware used.
+- Fresh 1,698 tests / 107 files, typecheck, production build and diff check PASS.
+  Formatting retains only the same four baseline warnings. Owner playback retry
+  pending; generic cold tool-discovery optimization and event-storage 503 unchanged.
+- See [current voice evidence](docs/ary-realtime-voice.md#spoken-answer-delay-correction--september-13-2026).
+  Existing DONE milestones and unrelated NEXT 3 remain unchanged.

@@ -154,9 +154,9 @@ export function RealtimeMicTest() {
         Nexus.
       </p>
       <p>
-        Start, allow microphone access, and wait for CAPTURING / ACTIVE. Say
-        “Hey Ary, can you hear me?”, then pause until both speech indicators are
-        true and click Stop. No assistant audio will play.
+        For a spoken answer, use START ARY BRAIN VOICE + PLAYBACK. Say “Ary, can
+        you hear me? Answer briefly.” and wait for her response before stopping.
+        START REALTIME MIC TEST checks input only and plays no answer.
       </p>
       <button onClick={() => void loadConversations()} disabled={!!busy}>
         Load existing conversations

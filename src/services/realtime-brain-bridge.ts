@@ -94,6 +94,7 @@ export class RealtimeBrainBridge {
       abort.abort();
       this.fail("BRAIN_VOICE_TIMEOUT");
     }, 45000);
+    let speechTask: Promise<void> | undefined;
     let canonical: string | undefined,
       failed = false;
     this.publish({ type: "state", state: "PROCESSING" });
@@ -112,7 +113,29 @@ export class RealtimeBrainBridge {
           },
         },
       )) {
-        if (event.type === "response") canonical = event.message.content;
+        if (event.type === "response" && canonical === undefined) {
+          canonical = event.message.content;
+          if (this.closed || abort.signal.aborted) continue;
+          if (!canonical?.trim()) {
+            this.fail("BRAIN_VOICE_FAILED");
+            continue;
+          }
+          if (canonical.length > 4000) {
+            this.fail("CANONICAL_SPEECH_TOO_LONG");
+            continue;
+          }
+          // The response is already committed by Brain. Start its speech now;
+          // keep consuming the same generator so durable extraction still finishes.
+          clearTimeout(timer);
+          speechTask = (
+            this.speech
+              ? this.speech(canonical, abort.signal)
+              : Promise.resolve(this.session.speakText!(canonical))
+          ).catch(() => {
+            if (!abort.signal.aborted && !this.closed)
+              this.fail("BRAIN_VOICE_FAILED");
+          });
+        }
         if (event.type === "error") failed = true;
         // Brain remains responsible for its delta/response/complete order, message writes and extraction.
       }
@@ -121,13 +144,7 @@ export class RealtimeBrainBridge {
         this.fail("BRAIN_VOICE_FAILED");
         return;
       }
-      if (canonical.length > 4000) {
-        this.fail("CANONICAL_SPEECH_TOO_LONG");
-        return;
-      }
-      clearTimeout(timer); // Brain deadline ends here; speech has its own bounded per-fragment deadline.
-      if (this.speech) await this.speech(canonical, abort.signal);
-      else this.session.speakText!(canonical);
+      await speechTask;
     } catch {
       if (!abort.signal.aborted && !this.closed)
         this.fail("BRAIN_VOICE_FAILED");
