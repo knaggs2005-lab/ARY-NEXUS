@@ -271,3 +271,61 @@ it("requires explicit flags to select development providers", () => {
   expect(services(repo).provider).toBe("Development stub");
   expect(services(repo).embeddingModel).toMatch(/^local/);
 });
+
+it("batch embeddings restore input order and log one request cost", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "test-only-env-value");
+  const a = [1, ...Array(383).fill(0)],
+    b = [2, ...Array(383).fill(0)];
+  const call = vi.fn().mockResolvedValue(
+    Response.json({
+      model: "text-embedding-3-large",
+      data: [
+        { index: 1, embedding: b },
+        { index: 0, embedding: a },
+      ],
+      usage: { total_tokens: 9 },
+    }),
+  );
+  vi.stubGlobal("fetch", call);
+  const metrics = vi.fn(async () => {});
+  expect(
+    await new OpenAIEmbeddingProvider(metrics).embedMany(["first", "second"]),
+  ).toEqual([a, b]);
+  expect(call).toHaveBeenCalledOnce();
+  expect(JSON.parse(call.mock.calls[0][1].body).input).toEqual([
+    "first",
+    "second",
+  ]);
+  expect(metrics).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ input_tokens: 9, status: "succeeded" }),
+  );
+});
+it("rejects malformed batch indexes", async () => {
+  vi.stubEnv("OPENAI_API_KEY", "test-only-env-value");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      Response.json({
+        model: "text-embedding-3-large",
+        data: [0, 0].map((index) => ({
+          index,
+          embedding: [1, ...Array(383).fill(0)],
+        })),
+        usage: { total_tokens: 2 },
+      }),
+    ),
+  );
+  await expect(
+    new OpenAIEmbeddingProvider(async () => {}).embedMany(["a", "b"]),
+  ).rejects.toThrow();
+});
+it("bounds embedding batches before network and accepts empty batches locally", async () => {
+  const call = vi.fn();
+  vi.stubGlobal("fetch", call);
+  const provider = new OpenAIEmbeddingProvider(async () => {});
+  expect(await provider.embedMany([])).toEqual([]);
+  await expect(provider.embedMany(Array(33).fill("test"))).rejects.toThrow();
+  await expect(provider.embedMany([" "])).rejects.toThrow();
+  await expect(provider.embedMany(["x".repeat(8001)])).rejects.toThrow();
+  expect(call).not.toHaveBeenCalled();
+});

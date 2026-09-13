@@ -568,3 +568,31 @@ it("Anthropic streaming checks terminal status and returns incremental text", as
   expect(r.metrics.output_tokens).toBe(2);
   expect(delta).toHaveBeenCalledExactlyOnceWith("Hello");
 });
+
+it("batch embeddings preserve privacy and cancellation boundaries", async () => {
+  const embedMany = vi.fn(
+    async (_texts: string[], _options?: { signal?: AbortSignal }) => [[1]],
+  );
+  const provider = {
+    modelId: "batch-fixture",
+    embed: async () => [1],
+    embedMany,
+  };
+  vi.stubEnv("ARY_MODEL_ROUTER_POLICY", '{"privacy":"local_only"}');
+  await expect(
+    guardedEmbeddings(provider, false).embedMany!(["private"]),
+  ).rejects.toThrow(/blocked/);
+  expect(embedMany).not.toHaveBeenCalled();
+  const stopped = new AbortController();
+  stopped.abort();
+  await expect(
+    guardedEmbeddings(provider, true, stopped.signal).embedMany!(["private"]),
+  ).rejects.toThrow();
+  expect(embedMany).not.toHaveBeenCalled();
+  expect(await guardedEmbeddings(provider, true).embedMany!(["local"])).toEqual(
+    [[1]],
+  );
+  expect(embedMany).toHaveBeenCalledExactlyOnceWith(["local"], {
+    signal: expect.any(AbortSignal),
+  });
+});

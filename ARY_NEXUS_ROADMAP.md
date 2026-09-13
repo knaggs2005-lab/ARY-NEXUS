@@ -477,3 +477,19 @@ Implemented a read-only owner-facing Connections overview derived from the exist
 - Physical background-noise and playback effectiveness remain owner-test pending;
   this does not provide owner-only voice recognition. Existing DONE / NEXT 3 unchanged.
   [Tuning and acceptance](docs/ary-realtime-voice.md#room-noise-tuning--september-13-2026).
+
+### Cold tool-discovery latency — September 13
+
+- Owner reports audible speech works; processing speed remains the focus. Existing
+  per-owner descriptor cache now warms through optional bounded embedding batches.
+  Same providers, ranking, guarded privacy/cancellation and action permissions.
+- Isolated same-query probe: embedding requests 133 → 8; first audio 17,721 → 6,469 ms.
+  These are individual synthetic-transcript runs, not owner-microphone latency.
+- Longer-answer playback hit OUTPUT_BACKPRESSURE; complete voice acceptance remains
+  partial. No output buffer limits or runtime prompts were changed to hide this.
+- 1,707 tests / 107 files, typecheck and production build PASS; same four baseline
+  format warnings. DONE / unrelated NEXT 3 unchanged.
+  [Evidence and limitations](docs/ary-realtime-voice.md#cold-tool-discovery-latency--september-13-2026).
+
+- Short-answer live variant completed: first audio 5,347 ms, 216,000 bytes, extraction
+  complete, temporary fixtures removed. Physical latency retest still pending.

@@ -262,7 +262,7 @@ it.each([
 it("canonical schema hash is stable across property order", () => {
   expect(schemaHash({ b: 2, a: 1 })).toBe(schemaHash({ a: 1, b: 2 }));
 });
-function discovery() {
+function discovery(batched = false) {
   registry.register("create_task", {
     inputSchema: z.object({ title: z.string() }),
     capability: { capabilities: ["assign work", "track an obligation"] },
@@ -272,20 +272,23 @@ function discovery() {
     inputSchema: z.object({}),
     execute: async () => ({}),
   });
-  const embed = vi.fn(async (text: string) =>
+  const vector = (text: string) =>
     /obligation|assign work|create_task|remind me to finish/i.test(text)
       ? [1, 0, 0]
       : /galaxy|astrophysics/i.test(text)
         ? [0, 0, 1]
-        : [0, 1, 0],
-  );
+        : [0, 1, 0];
+  const embed = vi.fn(async (text: string) => vector(text));
+  const embedMany = vi.fn(async (texts: string[]) => texts.map(vector));
   return {
     service: new ToolDiscoveryService(repo, actions, registry, {
       modelId: "isolated-test",
       version: "v1",
       embed,
+      ...(batched ? { embedMany } : {}),
     }),
     embed,
+    embedMany,
   };
 }
 it("discovers a paraphrase semantically with transparent RRF and no permanent memory", async () => {
@@ -482,4 +485,76 @@ it("aborts a timed-out MCP session and closes its connection", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("batches cold descriptors, preserves semantic recall and reuses the cache", async () => {
+  const f = discovery(true);
+  const first = await f.service.search({ query: "Remind me to finish it" });
+  expect(first.matches[0].tool.name).toBe("create_task");
+  expect(first.matches[0].reasons).toContain("semantic rank 1");
+  expect(f.embed).toHaveBeenCalledTimes(1);
+  expect(f.embedMany).toHaveBeenCalledTimes(1);
+  await f.service.search({ query: "Remind me to finish it" });
+  expect(f.embed).toHaveBeenCalledTimes(2);
+  expect(f.embedMany).toHaveBeenCalledTimes(1);
+  expect(await repo.list("memories")).toEqual([]);
+});
+it("bounds descriptor batches and excludes denied tools", async () => {
+  const f = discovery(true);
+  await actions.permissions.savePolicy({
+    tool: "create_task",
+    level: 0,
+    reason: "Denied",
+  });
+  const base = await f.service.catalog();
+  const example = base.find((t) => t.name === "task.inspect")!;
+  vi.spyOn(f.service, "catalog").mockResolvedValue([
+    ...base,
+    ...Array.from({ length: 66 }, (_, i) => ({
+      ...example,
+      id: `fixture${i}`,
+      name: `fixture${i}`,
+    })),
+  ]);
+  await f.service.search({ query: "inspect task" });
+  expect(f.embedMany.mock.calls.length).toBeGreaterThan(1);
+  for (const [texts] of f.embedMany.mock.calls) {
+    expect(texts.length).toBeLessThanOrEqual(32);
+    expect(texts.some((t) => t.startsWith("create_task."))).toBe(false);
+  }
+  expect(f.embed).toHaveBeenCalledTimes(1);
+});
+it("failed batches fall back truthfully without individual retry fan-out", async () => {
+  const f = discovery(true);
+  f.embedMany.mockRejectedValueOnce(Error("offline"));
+  const result = await f.service.search({ query: "inspect task" });
+  expect(result.model).toBeNull();
+  expect(result.warnings).toContain(
+    "Descriptor batch unavailable; lexical discovery only",
+  );
+  expect(f.embed).toHaveBeenCalledTimes(1);
+  const retry = await f.service.search({ query: "Remind me to finish it" });
+  expect(retry.matches[0].tool.name).toBe("create_task");
+  expect(f.embedMany).toHaveBeenCalledTimes(2);
+});
+it("concurrent discovery shares an in-flight descriptor batch", async () => {
+  const f = discovery(true);
+  const original = f.embedMany.getMockImplementation()!;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.embedMany.mockImplementation(async (texts) => {
+    await gate;
+    return original(texts);
+  });
+  const first = f.service.search({ query: "Remind me to finish it" });
+  const second = f.service.search({ query: "Remind me to finish it" });
+  await vi.waitFor(() => expect(f.embedMany).toHaveBeenCalledOnce());
+  release();
+  const results = await Promise.all([first, second]);
+  expect(f.embedMany).toHaveBeenCalledOnce();
+  expect(results.every((r) => r.matches[0].tool.name === "create_task")).toBe(
+    true,
+  );
 });

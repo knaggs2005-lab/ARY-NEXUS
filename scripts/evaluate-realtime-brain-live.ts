@@ -18,6 +18,8 @@ import type {
 /** Real configured Brain + Realtime output; synthetic transcript, isolated storage, no devices. */
 async function main() {
   loadEnvConfig(process.cwd(), true);
+  const includeDiscovery = process.argv.includes("--tool-discovery");
+  const shortAnswer = process.argv.includes("--short-answer");
   const directory = await mkdtemp(join(tmpdir(), "ary-brain-speech-live-"));
   let session: RealtimeVoiceSession | undefined;
   let bridge: RealtimeBrainBridge | undefined;
@@ -66,6 +68,7 @@ async function main() {
     const started = performance.now();
     output = new RealtimeOutputStream(() => {
       failed = true;
+      console.log("DIAGNOSTIC_FAILURE: OUTPUT_BACKPRESSURE");
     });
     const stream = output;
     const playback = new RealtimePlayback(silentTimingContext);
@@ -73,15 +76,23 @@ async function main() {
     client = new RealtimeOutputClient(
       async () => stream.open(new AbortController().signal),
       playback,
-      () => {
+      (code) => {
         failed = true;
+        console.log(
+          `DIAGNOSTIC_FAILURE: ${code.replace(/[^A-Z_]/g, "").slice(0, 64)}`,
+        );
       },
     );
     await client.open("synthetic-live-brain");
     off = actual.onEvent((event) => {
       if (event.type === "assistant_audio_delta")
         audioMs ||= performance.now() - started;
-      if (event.type === "failure") failed = true;
+      if (event.type === "failure") {
+        failed = true;
+        console.log(
+          `DIAGNOSTIC_FAILURE: ${event.failure.code.replace(/[^A-Z_]/g, "").slice(0, 64)}`,
+        );
+      }
       stream.publish(event);
       emit(event);
     });
@@ -99,7 +110,12 @@ async function main() {
       },
       conversation.id,
       (event) => {
-        if (event.type === "failure") failed = true;
+        if (event.type === "failure") {
+          failed = true;
+          console.log(
+            `DIAGNOSTIC_FAILURE: ${event.failure.code.replace(/[^A-Z_]/g, "").slice(0, 64)}`,
+          );
+        }
         stream.publish(event);
       },
       undefined,
@@ -108,7 +124,11 @@ async function main() {
     emit({
       type: "transcript_final",
       turn_id: "synthetic-final",
-      text: "Ary, can you hear me? Answer briefly.",
+      text: includeDiscovery
+        ? shortAnswer
+          ? "Which tools can you use? Reply in at most five words."
+          : "Which tools can you use? Answer briefly."
+        : "Ary, can you hear me? Answer briefly.",
     });
     await Promise.race([
       bridge.idle(),
@@ -125,12 +145,21 @@ async function main() {
     const toolDiscovery = (await repo.list("actions")).filter(
       (a) => a.tool_name === "tools.discover",
     ).length;
+    console.log(
+      JSON.stringify({
+        diagnostic_stage: "audio_complete",
+        failed,
+        canonical_response_ms: Math.round(responseMs),
+        first_audio_received_ms: Math.round(audioMs),
+        audio_bytes: health.audio_bytes_received,
+      }),
+    );
     if (
       failed ||
       !responseMs ||
       !audioMs ||
       !health.audio_bytes_received ||
-      toolDiscovery
+      toolDiscovery !== (includeDiscovery ? 1 : 0)
     )
       throw new Error("BRAIN_AUDIO_NOT_ACCEPTED");
     console.log(

@@ -7,6 +7,11 @@ export interface EmbeddingProvider {
   readonly version?: string;
   readonly dimensions?: number;
   embed(text: string, options?: { signal?: AbortSignal }): Promise<number[]>;
+  /** Optional bounded batching; vectors must retain input order. */
+  embedMany?(
+    texts: string[],
+    options?: { signal?: AbortSignal },
+  ): Promise<number[][]>;
 }
 export interface BrainContext {
   capabilities?: import("./models").Json[];

@@ -221,51 +221,62 @@ export function guardedEmbeddings(
   )
     policy.privacy = "local_only";
   const key = `embedding:${provider.modelId}:${provider.version}`;
+  async function guarded<T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+    options?: { signal?: AbortSignal },
+  ): Promise<T> {
+    if (policy.privacy === "local_only" && !local)
+      throw new AppError("Cloud embeddings blocked by local-only policy", 503);
+    if ((modelHealth.get(key)?.until ?? 0) > Date.now())
+      throw new AppError("Embedding provider cooling down", 503);
+    const signals = [
+        signal,
+        options?.signal,
+        actionCancellation.getStore(),
+        AbortSignal.timeout(Math.min(policy.timeout_ms, 8000)),
+      ].filter((s): s is AbortSignal => !!s),
+      combined = AbortSignal.any(signals);
+    combined.throwIfAborted();
+    let detach = () => {};
+    try {
+      return await Promise.race([
+        operation(combined),
+        new Promise<never>((_, reject) => {
+          const abort = () => reject(combined.reason);
+          combined.addEventListener("abort", abort, { once: true });
+          detach = () => combined.removeEventListener("abort", abort);
+        }),
+      ]);
+    } catch (error) {
+      if (
+        !signal?.aborted &&
+        !options?.signal?.aborted &&
+        !actionCancellation.getStore()?.aborted
+      )
+        modelHealth.set(key, {
+          failures: 1,
+          until: Date.now() + 15000,
+          latency: null,
+        });
+      throw error;
+    } finally {
+      detach();
+    }
+  }
   return {
     modelId: provider.modelId,
     version: provider.version,
     dimensions: provider.dimensions,
-    async embed(text, options) {
-      if (policy.privacy === "local_only" && !local)
-        throw new AppError(
-          "Cloud embeddings blocked by local-only policy",
-          503,
-        );
-      if ((modelHealth.get(key)?.until ?? 0) > Date.now())
-        throw new AppError("Embedding provider cooling down", 503);
-      const signals = [
-          signal,
-          options?.signal,
-          actionCancellation.getStore(),
-          AbortSignal.timeout(Math.min(policy.timeout_ms, 8000)),
-        ].filter((s): s is AbortSignal => !!s),
-        combined = AbortSignal.any(signals);
-      combined.throwIfAborted();
-      let detach = () => {};
-      try {
-        return await Promise.race([
-          provider.embed(text, { signal: combined }),
-          new Promise<never>((_, reject) => {
-            const abort = () => reject(combined.reason);
-            combined.addEventListener("abort", abort, { once: true });
-            detach = () => combined.removeEventListener("abort", abort);
-          }),
-        ]);
-      } catch (error) {
-        if (
-          !signal?.aborted &&
-          !options?.signal?.aborted &&
-          !actionCancellation.getStore()?.aborted
-        )
-          modelHealth.set(key, {
-            failures: 1,
-            until: Date.now() + 15000,
-            latency: null,
-          });
-        throw error;
-      } finally {
-        detach();
-      }
-    },
+    embed: (text, options) =>
+      guarded((signal) => provider.embed(text, { signal }), options),
+    ...(provider.embedMany
+      ? {
+          embedMany: (texts: string[], options?: { signal?: AbortSignal }) =>
+            guarded(
+              (signal) => provider.embedMany!(texts, { signal }),
+              options,
+            ),
+        }
+      : {}),
   };
 }

@@ -161,11 +161,73 @@ export class ToolDiscoveryService {
           .slice(0, 180);
         const words = lexicalTokens(input.query),
           notes: string[] = [];
+        const descriptor = (t: (typeof catalog)[number]) =>
+          `${t.name}. ${t.description}. ${t.capabilities.join(". ")}`.slice(
+            0,
+            2500,
+          );
+        const vectorKey = (text: string) =>
+          createHash("sha256")
+            .update(
+              JSON.stringify([
+                this.repo.userId,
+                this.embeddings.modelId,
+                this.embeddings.version,
+                this.embeddings.dimensions,
+                text,
+              ]),
+            )
+            .digest("hex");
         let queryVector: number[] | null = null;
         try {
           queryVector = await this.embeddings.embed(input.query);
         } catch {
           notes.push("Semantic provider unavailable; lexical discovery only");
+        }
+        // Warm the existing per-owner/version cache in bounded requests, not one
+        // network round trip per descriptor. Publish promises before awaiting so
+        // concurrent searches share in-flight work. Never execute discovered tools.
+        if (queryVector && this.embeddings.embedMany) {
+          try {
+            for (let start = 0; start < catalog.length; start += 32) {
+              const missing = catalog
+                .slice(start, start + 32)
+                .map((t) => ({
+                  text: descriptor(t),
+                  key: vectorKey(descriptor(t)),
+                }))
+                .filter(({ key }) => {
+                  const cached = vectors.get(key);
+                  return !cached || Date.now() - cached.at > 900000;
+                });
+              if (!missing.length) continue;
+              const batch = this.embeddings.embedMany(
+                missing.map((d) => d.text),
+              );
+              const pending = missing.map(({ key }, index) => {
+                if (vectors.size >= 512)
+                  vectors.delete(vectors.keys().next().value!);
+                const cached = {
+                  at: Date.now(),
+                  vector: batch.then((rows) => {
+                    if (rows.length !== missing.length || !rows[index]?.length)
+                      throw new Error("Invalid descriptor batch");
+                    return rows[index];
+                  }),
+                };
+                vectors.set(key, cached);
+                cached.vector.catch(() => {
+                  if (vectors.get(key) === cached) vectors.delete(key);
+                });
+                return cached.vector;
+              });
+              await Promise.all(pending);
+            }
+          } catch {
+            // Do not amplify one failed batch into a catalog of individual retries.
+            queryVector = null;
+            notes.push("Descriptor batch unavailable; lexical discovery only");
+          }
         }
         const cosine = (a: number[], b: number[]) => {
           if (
@@ -185,28 +247,14 @@ export class ToolDiscoveryService {
           candidates.push(
             ...(await Promise.all(
               catalog.slice(start, start + 4).map(async (t) => {
-                const text =
-                  `${t.name}. ${t.description}. ${t.capabilities.join(". ")}`.slice(
-                    0,
-                    2500,
-                  );
+                const text = descriptor(t);
                 const lexical =
                   words.filter((w) => lexicalTokens(text).includes(w)).length /
                   Math.max(1, words.length);
                 let semantic: number | null = null;
                 if (queryVector)
                   try {
-                    const key = createHash("sha256")
-                      .update(
-                        JSON.stringify([
-                          this.repo.userId,
-                          this.embeddings.modelId,
-                          this.embeddings.version,
-                          this.embeddings.dimensions,
-                          text,
-                        ]),
-                      )
-                      .digest("hex");
+                    const key = vectorKey(text);
                     let cached = vectors.get(key);
                     if (!cached || Date.now() - cached.at > 900000) {
                       if (vectors.size >= 512)

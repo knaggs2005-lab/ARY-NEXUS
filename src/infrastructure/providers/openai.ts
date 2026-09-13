@@ -417,6 +417,16 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     if (Buffer.byteLength(input, "utf8") > 8000)
       throw new OpenAIProviderError("embedding_input_too_long", 400);
     if (!input.trim()) return Array(this.dimensions).fill(0);
+    return (await this.embedMany([input], options))[0];
+  }
+  async embedMany(inputs: string[], options?: ReasoningOptions) {
+    if (!inputs.length) return [];
+    // <=256k UTF-8 bytes across 32 inputs is below the combined token bound.
+    if (
+      inputs.length > 32 ||
+      inputs.some((s) => !s.trim() || Buffer.byteLength(s, "utf8") > 8000)
+    )
+      throw new OpenAIProviderError("embedding_input_too_long", 400);
     const started = performance.now();
     let tokens: number | null = null,
       model: string = this.modelId,
@@ -433,7 +443,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
                 embedding: z.array(z.number().finite()).length(this.dimensions),
               }),
             )
-            .length(1),
+            .length(inputs.length),
           usage: z.object({ total_tokens: count }),
         })
         .parse(
@@ -441,7 +451,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
             "embeddings",
             {
               model: this.modelId,
-              input,
+              input: inputs.length === 1 ? inputs[0] : inputs,
               dimensions: this.dimensions,
               encoding_format: "float",
             },
@@ -450,10 +460,13 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
         );
       model = result.model;
       tokens = result.usage.total_tokens;
-      if (!Math.hypot(...result.data[0].embedding))
+      const ordered = result.data.toSorted((a, b) => a.index - b.index);
+      if (ordered.some((row, index) => row.index !== index))
+        throw new OpenAIProviderError("invalid_embedding");
+      if (ordered.some((row) => !Math.hypot(...row.embedding)))
         throw new OpenAIProviderError("zero_embedding");
       status = "succeeded";
-      return result.data[0].embedding;
+      return ordered.map((row) => row.embedding);
     } catch (error) {
       errorCode =
         error instanceof OpenAIProviderError ? error.code : "invalid_embedding";

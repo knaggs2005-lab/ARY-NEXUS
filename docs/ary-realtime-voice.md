@@ -406,3 +406,47 @@ herself. Compare a quiet room with ordinary background noise. Softer speech may 
 need a closer microphone. This is noise suppression, not enrolled owner recognition;
 other people's voices or TV speech can still trigger VAD. No speaker model, wake-word
 installation, permissions, schemas, tools or classic voice path was changed.
+
+## Cold tool-discovery latency — September 13, 2026
+
+Owner reports audible speech now works, but processing remains slow. Latest local
+server log contained 135 embedding requests across two turns; the successful reasoning
+call itself took 1,366 ms. The log does not timestamp every VAD/transcription boundary,
+so it cannot establish exact owner end-of-speech latency. Source tracing confirms
+ToolDiscoveryService embeds each uncached descriptor in groups of four before reasoning.
+
+Added optional `EmbeddingProvider.embedMany`, implemented by the existing OpenAI
+embedding adapter with at most 32 inputs / 8,000 UTF-8 bytes each, strict vector dimensions,
+index/order/zero checks, and one telemetry/cost record per request. Existing single-input
+semantics remain. The existing guardedEmbeddings wrapper forwards batching through the
+same local-only policy, cancellation, deadline and cooldown checks; no policy changed.
+ToolDiscoveryService populates its existing per-owner/model/version ephemeral cache in
+batches. Same permission-filtered catalog, semantic candidates and RRF ranking; no tools
+execute. Concurrent queries share cached promises. Failed batches fall back visibly to
+lexical search instead of fanning out individual retries. Other providers retain the
+existing bounded single-input path. No memory vectors or provider/model settings changed.
+
+Live isolated canonical Brain + Realtime experiment, same synthetic capability question:
+old unbatched wrapper: 133 embedding requests, canonical response 16,992 ms, first audio
+17,721 ms. Batched wrapper: 8 embedding requests, canonical response 5,903 ms, first audio
+6,469 ms. These are individual runs, not a statistical latency guarantee; no owner
+microphone or speaker was activated. Reasoning/provider duration varies.
+
+Longer-answer output acceptance failed after audio began with OUTPUT_BACKPRESSURE /
+OUTPUT_FAILED. The first batched probe also failed output acceptance before diagnostic
+codes were added. This remains a separate output-buffer/pacing weakness, not a claimed
+full physical voice PASS. The diagnostic now records bounded failure codes/timing and
+supports `--tool-discovery` plus an optional `--short-answer` variant. Normal runtime
+prompts and output queue limits are unchanged.
+
+Validation: 1,707 tests / 107 files PASS, typecheck PASS, production build and production
+access checks PASS. Format check retains the same four unrelated warnings. Added tests
+cover batch ordering/limits, cache reuse/concurrency, permission filtering, failure
+fallback/retry, and wrapper privacy/cancellation. No credentials, raw audio or private
+prompts are emitted by the new diagnostics.
+
+Short-answer live variant PASS: canonical response 4,749 ms, first audio 5,347 ms,
+45 chunks / 216,000 bytes, one tool discovery, one assistant message and completed
+extraction. Temporary local fixtures were removed. This does not erase the longer-answer
+backpressure failure above. Owner should refresh and start a new voice session to use
+the restarted server and compare the same spoken question.
