@@ -1,3 +1,6 @@
+import { liveCommandBridge } from "../services/live-command-bridge";
+import { OpenAILiveProvider } from "../infrastructure/providers/openai-live";
+import { startLiveSession, liveSession } from "../services/live-voice-service";
 import { NexusIntelligenceService } from "../services/nexus-intelligence-service";
 import { NexusMapService } from "../services/nexus-map-service";
 import { MissionControlService } from "../services/mission-control-service";
@@ -102,6 +105,8 @@ export async function handle(
       if (origin && origin !== expectedOrigin.origin)
         throw new AppError("Cross-origin writes are not allowed", 403);
     }
+    if (route.startsWith("live/") && process.env.NODE_ENV !== "development")
+      throw new AppError("Not found", 404);
     if (route === "desktop/health" && method === "GET")
       return json({
         application: "ary-nexus",
@@ -222,6 +227,92 @@ export async function handle(
       provider,
       embeddingModel,
     } = await context(request);
+    if (route.startsWith("live/")) {
+      if (process.env.NODE_ENV !== "development")
+        throw new AppError("Not found", 404);
+      if (route === "live/config" && method === "GET")
+        return json({
+          mode: process.env.ARY_VOICE_MODE === "live" ? "live" : "legacy",
+          configured: Boolean(process.env.OPENAI_API_KEY),
+        });
+      if (path.length === 3 && path[2] === "status" && method === "GET") {
+        return json(
+          liveSession(repository.userId, z.uuid().parse(path[1])).snapshot(),
+        );
+      }
+      // Cross-origin writes were rejected above using the actual Host authority (including Next dev ports).
+      if (!request.headers.get("origin"))
+        throw new AppError("Same-origin Live request required", 403);
+      if (route === "live/start" && method === "POST") {
+        if (process.env.ARY_VOICE_MODE !== "live")
+          throw new AppError(
+            "Live is disabled; legacy voice remains available",
+            409,
+          );
+        const input = z
+          .object({
+            conversation_id: z.uuid(),
+            sdp: z.string().min(1).max(65536),
+          })
+          .strict()
+          .parse(await body(request));
+        required(
+          await repository.get("conversations", input.conversation_id),
+          "Conversation",
+        );
+        const execute = () =>
+          startLiveSession({
+            provider: new OpenAILiveProvider(process.env.OPENAI_API_KEY ?? ""),
+            repository,
+            brain,
+            actions,
+            reconciliation,
+            conversationId: input.conversation_id,
+            sdp: input.sdp,
+            signal: request.signal,
+            command: liveCommandBridge(
+              repository,
+              new ActionRequestService(repository, actions, actionTools),
+            ),
+          });
+        const audit = {
+          result: (result: { id: string; model: string }) => ({
+            live_session_id: result.id,
+            model: result.model,
+          }),
+        };
+        return json(
+          await actions.run(
+            "voice.transcribe",
+            input.conversation_id,
+            () =>
+              actions.run(
+                "voice.speak",
+                input.conversation_id,
+                execute,
+                {},
+                {},
+                audit,
+              ),
+            {},
+            {},
+            audit,
+          ),
+          201,
+        );
+      }
+      if (
+        path.length === 3 &&
+        method === "POST" &&
+        ["stop", "interrupt"].includes(path[2])
+      ) {
+        const session = liveSession(repository.userId, z.uuid().parse(path[1]));
+        if (path[2] === "stop") session.stop();
+        else session.interrupt();
+        return json({ accepted: true });
+      }
+      throw new AppError("Not found", 404);
+    }
     const realtimeRelay = () =>
       dependencies?.realtimeRelay ??
       realtimeVoiceRelayFor(repository.userId, realtimeVoice);
@@ -229,6 +320,7 @@ export async function handle(
       if (process.env.NODE_ENV === "production")
         throw new AppError("Endpoint not found", 404);
       return json({
+        voice_mode: process.env.ARY_VOICE_MODE === "live" ? "live" : "legacy",
         owner_id: repository.userId,
         wake_enabled: process.env.ARY_WAKE_WORD_ENABLED === "true",
         owner_voice_enabled: process.env.ARY_OWNER_VOICE_ENABLED === "true",

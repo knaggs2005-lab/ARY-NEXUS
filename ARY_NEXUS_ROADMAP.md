@@ -508,3 +508,9 @@ Implemented a read-only owner-facing Connections overview derived from the exist
   unrelated NEXT 3 unchanged. [Details](docs/ary-realtime-voice.md#streaming-spoken-answers-and-parallel-context--september-13-2026).
 
 - Fresh full validation: **1,716 tests / 107 files PASS**.
+
+## GPT-Live frontend checkpoint — September 13, 2026 (PARTIAL)
+
+Experimental client-delegation WebRTC frontend added behind `ARY_VOICE_MODE=legacy` (unchanged default), preserving baseline `52e93ef` with tag `voice-legacy-baseline-52e93ef`. Reuses canonical Brain, action requests/approvals, command dispatcher, microphone lease, wake activation port and evidence/extraction architecture. Actual model access and no-mic WebRTC create/sideband/start/close probe passed; protocol rejected `session.type`, so the verified WebRTC create payload omits it. See [contract, exact files, safety and acceptance gates](docs/voice/gpt-live.md). Physical latency, Live memory/tool acceptance, interruption, ten-turn conversation and cold-wake/prewarm comparison remain NOT RUN. Existing missing wake assets remain a separate blocker. Not promoted to default; no unrelated milestone started and prior DONE/NEXT 3 unchanged.
+
+Checkpoint validation: 1,732 tests / 108 files passed; typecheck and isolated production build passed. Formatting retains only the same four unrelated baseline warnings. Real no-microphone Live transport probe passed; physical acceptance remains outstanding. Legacy default and NEXT 3 preserved.

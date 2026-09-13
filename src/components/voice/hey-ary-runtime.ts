@@ -1,3 +1,4 @@
+import type { RealtimeVoiceActivator } from "../../services/voice-activation-service";
 import type { AudioCaptureProvider } from "../../domain/audio-capture";
 import type { WakeWordProvider } from "../../domain/wake-word";
 import type { OwnerVoiceGate } from "../../services/owner-voice-gate";
@@ -13,6 +14,7 @@ import { RelayVoiceActivator } from "./relay-voice-activator";
 /** Composition only: one existing activation state machine, one relay/Brain, one mic lease. */
 export function createHeyAryRuntime(options: {
   conversationId: string;
+  activator?: RealtimeVoiceActivator & { snapshot(): unknown };
   enabled: boolean;
   capture: AudioCaptureProvider;
   wakeProvider: WakeWordProvider;
@@ -37,37 +39,40 @@ export function createHeyAryRuntime(options: {
       else if (status === "SPEAKING") change("LISTENING");
     },
   );
-  const activator = new RelayVoiceActivator(() => {
-    let client: RealtimeMicRelayClient;
-    const output = new RealtimeOutputClient(
-      options.request,
-      playback,
-      (code) => client.fail(code),
-      (event) => {
-        if (event.type === "closed") void client.remoteEnd(event.failure_code);
-        if (event.type === "interrupted") change("INTERRUPTED");
-        if (
-          event.type === "state" &&
-          !(event.state === "IDLE" && playback.snapshot().state === "PLAYING")
-        )
-          change(
-            event.state === "PROCESSING"
-              ? "THINKING"
-              : event.state === "ASSISTANT_SPEAKING"
-                ? "SPEAKING"
-                : event.state,
-          );
-      },
-      true,
-    );
-    // Keep unlocked dedicated output context across wake cycles; dispose only on runtime stop.
-    client = new RealtimeMicRelayClient(
-      options.capture,
-      options.request,
-      output,
-    );
-    return client;
-  }, playback);
+  const activator =
+    options.activator ??
+    new RelayVoiceActivator(() => {
+      let client: RealtimeMicRelayClient;
+      const output = new RealtimeOutputClient(
+        options.request,
+        playback,
+        (code) => client.fail(code),
+        (event) => {
+          if (event.type === "closed")
+            void client.remoteEnd(event.failure_code);
+          if (event.type === "interrupted") change("INTERRUPTED");
+          if (
+            event.type === "state" &&
+            !(event.state === "IDLE" && playback.snapshot().state === "PLAYING")
+          )
+            change(
+              event.state === "PROCESSING"
+                ? "THINKING"
+                : event.state === "ASSISTANT_SPEAKING"
+                  ? "SPEAKING"
+                  : event.state,
+            );
+        },
+        true,
+      );
+      // Keep unlocked dedicated output context across wake cycles; dispose only on runtime stop.
+      client = new RealtimeMicRelayClient(
+        options.capture,
+        options.request,
+        output,
+      );
+      return client;
+    }, playback);
   const activation = new VoiceActivationService(
     wake,
     activator,

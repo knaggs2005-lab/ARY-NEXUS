@@ -1,4 +1,5 @@
 "use client";
+import { LiveVoiceActivator } from "./live-voice-activator";
 import { useEffect, useRef, useState } from "react";
 import { createHeyAryRuntime } from "./hey-ary-runtime";
 import { api } from "../api";
@@ -41,6 +42,10 @@ export function HeyAryTest() {
       const capture = new BrowserAudioCaptureProvider();
       runtime.current = createHeyAryRuntime({
         enabled: config.wake_enabled === true,
+        activator:
+          config.voice_mode === "live"
+            ? new LiveVoiceActivator(setState)
+            : undefined,
         conversationId: conversation,
         capture,
         wakeProvider: new LocalWakeWordProvider(capture),
