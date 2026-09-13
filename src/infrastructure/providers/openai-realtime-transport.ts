@@ -91,8 +91,13 @@ export class OpenAIRealtimeWebSocketTransport implements OpenAIRealtimeTransport
                 audio: {
                   input: {
                     format: { type: "audio/pcm", rate: 24000 },
+                    // Filter room noise before VAD for the desktop/laptop mic path.
+                    noise_reduction: { type: "far_field" },
                     turn_detection: {
                       type: "server_vad",
+                      threshold: 0.65,
+                      prefix_padding_ms: 300,
+                      silence_duration_ms: 500,
                       create_response: false,
                       interrupt_response: false,
                     },

@@ -19,6 +19,28 @@ function stream() {
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 describe("BrowserAudioCaptureProvider", () => {
+  it("requests noise/echo suppression without boosting quiet room audio", async () => {
+    const f = stream();
+    const gum = vi.fn(async () => f.stream);
+    const provider = new BrowserAudioCaptureProvider({
+      lease: async () => () => {},
+      getUserMedia: gum,
+      capture: async () => () => {},
+    });
+    const session = await provider.start({}, vi.fn(), vi.fn());
+    expect(gum).toHaveBeenCalledExactlyOnceWith({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: false,
+        channelCount: { exact: 1 },
+        sampleRate: { ideal: 24000 },
+      },
+    });
+    await session.stop();
+    expect(f.track.stop).toHaveBeenCalledOnce();
+    expect(session.health.microphone_active).toBe(false);
+  });
   it("exposes metadata without raw audio", () => {
     const metadata = frameMetadata({
       encoding: "pcm16",

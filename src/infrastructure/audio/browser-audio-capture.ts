@@ -163,6 +163,8 @@ export class BrowserAudioCaptureProvider implements AudioCaptureProvider {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
+          // Avoid automatically amplifying room noise during quiet pauses.
+          autoGainControl: false,
           channelCount: { exact: 1 },
           sampleRate: { ideal: RATE },
         },

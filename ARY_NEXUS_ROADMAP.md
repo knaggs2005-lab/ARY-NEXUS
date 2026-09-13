@@ -465,3 +465,15 @@ Implemented a read-only owner-facing Connections overview derived from the exist
   pending; generic cold tool-discovery optimization and event-storage 503 unchanged.
 - See [current voice evidence](docs/ary-realtime-voice.md#spoken-answer-delay-correction--september-13-2026).
   Existing DONE milestones and unrelated NEXT 3 remain unchanged.
+
+### Room-noise tuning — September 13
+
+- Existing microphone requests no automatic gain boost; Realtime adds far-field
+  noise reduction and a 0.65 server-VAD threshold. 300 ms prefix / 500 ms silence,
+  canonical Brain ownership, explicit capture, permissions and cleanup preserved.
+- 1,699 tests / 107 files, typecheck and production build PASS. Identical generated
+  Next type duplicates moved out of the build tree; four unrelated format warnings
+  remain. Real no-audio session update/handshake PASS.
+- Physical background-noise and playback effectiveness remain owner-test pending;
+  this does not provide owner-only voice recognition. Existing DONE / NEXT 3 unchanged.
+  [Tuning and acceptance](docs/ary-realtime-voice.md#room-noise-tuning--september-13-2026).

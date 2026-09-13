@@ -375,3 +375,34 @@ not a measured Supabase-owner round-trip or physical speaker test. No microphone
 speaker was activated by the diagnostic. Owner spoken-playback acceptance remains
 pending. General cold tool discovery latency is not redesigned by this correction.
 The separate event-storage 503 and unrelated systems remain untouched.
+
+## Room-noise tuning — September 13, 2026
+
+Owner reported background audio keeping the turn open. This is a plausible cause,
+not a verified speaker-isolation diagnosis. Audit found browser echo/noise suppression
+already requested, automatic gain unspecified, and server VAD sensitivity/noise
+reduction left to provider defaults.
+
+The existing capture now requests `autoGainControl: false` to avoid boosting quiet
+room audio. Browser support is best-effort. Existing 24 kHz mono framing, consent,
+cleanup, echo cancellation and noise suppression are preserved. The existing Realtime
+session requests `audio.input.noise_reduction: { type: "far_field" }` for laptop/room
+microphones, `server_vad.threshold: 0.65`, 300 ms prefix padding and 500 ms silence.
+The latter two preserve the documented default timing; this does not force a turn
+to end while genuine speech continues. `create_response` / `interrupt_response`
+remain false: canonical Brain and interruption handling still own the response.
+See [OpenAI Realtime reference](https://platform.openai.com/docs/api-reference/realtime).
+
+Validation: 1,699 tests / 107 files PASS; typecheck PASS after moving four byte-identical
+generated `.next/dev/types/* 2.ts` duplicates out of the build tree (no source change);
+production build and production harness/access checks PASS. Format check retains only
+the four baseline warnings. A real no-audio handshake reached SOCKET_OPEN →
+SESSION_CREATED → SESSION_UPDATED → PASS, confirming provider acceptance. No physical
+microphone was activated for this change; room-noise effectiveness remains unverified.
+
+Owner retest: refresh `/mic-test`, start Brain voice/playback, speak at normal volume
+then pause. Check that she answers after the pause and does not repeatedly interrupt
+herself. Compare a quiet room with ordinary background noise. Softer speech may now
+need a closer microphone. This is noise suppression, not enrolled owner recognition;
+other people's voices or TV speech can still trigger VAD. No speaker model, wake-word
+installation, permissions, schemas, tools or classic voice path was changed.
