@@ -630,8 +630,9 @@ it.runIf(process.platform === "darwin")(
 it.runIf(process.platform === "darwin")(
   "runs an actual fixed Vitest command in the sandbox",
   async () => {
-    const scratch = await realpath(dir),
+    const scratch = join(await realpath(dir), "validation-focused"),
       deps = await realpath("node_modules");
+    await mkdir(scratch);
     await mkdir(join(scratch, "tests"));
     await writeFile(
       join(scratch, "tests", "proof.test.ts"),
@@ -834,4 +835,207 @@ it("denied build permission creates an audit receipt without a workspace", async
       (a) => a.tool_name === "development.build" && a.status === "blocked",
     ),
   ).toBe(true);
+});
+
+it("rejects worktree branch substitution with main", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  await exec("/usr/bin/git", ["symbolic-ref", "HEAD", "refs/heads/main"], {
+    cwd: join(dir, "workspaces", run.id, "worktree"),
+  });
+  await expect(workspace.inspect(run)).rejects.toThrow(/main/);
+});
+it("rejects a parent symlink before reading or creating outside the worktree", async () => {
+  const { symlink, rename } = await import("node:fs/promises");
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  const tree = join(dir, "workspaces", run.id, "worktree");
+  await rename(join(tree, "src"), join(dir, "outside"));
+  await symlink(join(dir, "outside"), join(tree, "src"));
+  await expect(workspace.inspect(run)).rejects.toThrow(/link/);
+  expect(await readFile(join(dir, "outside", "sample.ts"), "utf8")).toContain(
+    "value = 1",
+  );
+});
+it("rejects forged workspace ownership", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  await writeFile(
+    join(dir, "workspaces", run.id, "ownership.json"),
+    JSON.stringify({ run: run.id, owner: "someone-else" }),
+  );
+  await expect(workspace.inspect(run)).rejects.toThrow(/ownership/);
+});
+it("refuses cleanup with dirty tracked files and preserves them", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  run.phase = "COMPLETED";
+  const file = join(dir, "workspaces", run.id, "worktree", "src/sample.ts");
+  await writeFile(file, "user work");
+  await expect(workspace.cleanup(run)).rejects.toThrow(/Dirty/);
+  expect(await readFile(file, "utf8")).toBe("user work");
+});
+it("refuses cleanup for unknown ignored files", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  run.phase = "COMPLETED";
+  const tree = join(dir, "workspaces", run.id, "worktree");
+  await writeFile(join(tree, "unknown.txt"), "user work");
+  await writeFile(
+    join(dir, "repo", ".git", "info", "exclude"),
+    "unknown.txt\n",
+  );
+  expect(
+    (
+      await exec("/usr/bin/git", ["status", "--porcelain"], { cwd: tree })
+    ).stdout.trim(),
+  ).toBe("");
+  await expect(workspace.cleanup(run)).rejects.toThrow(/unknown/);
+  expect(await readFile(join(tree, "unknown.txt"), "utf8")).toBe("user work");
+});
+it("requires completion and explicit approval for cleanup; keeps evidence and branch", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  await expect(workspace.cleanup(run)).rejects.toThrow(/completed/);
+  expect(getToolDefinition("development.cleanup")?.alwaysRequiresApproval).toBe(
+    true,
+  );
+  run.phase = "COMPLETED";
+  expect(await workspace.cleanup(run)).toEqual({
+    removed: true,
+    branch_retained: true,
+    evidence_retained: true,
+  });
+  expect(await workspace.cleanup(run)).toHaveProperty("removed", true);
+  expect(
+    (
+      await exec("/usr/bin/git", ["branch", "--list", `ary/dev/${run.id}`], {
+        cwd: join(dir, "repo"),
+      })
+    ).stdout,
+  ).toContain(run.id);
+  expect(
+    await readFile(join(dir, "workspaces", run.id, "ownership.json"), "utf8"),
+  ).toContain(run.id);
+});
+it("detects dependency and migration changes without elevated authority", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  const tree = join(dir, "workspaces", run.id, "worktree");
+  await writeFile(join(tree, "package.json"), '{"dependencies":{"bad":"*"}}');
+  await expect(workspace.inspect(run)).rejects.toThrow(/Dependency/);
+  await rm(join(tree, "package.json"));
+  await mkdir(join(tree, "supabase/migrations"), { recursive: true });
+  await writeFile(
+    join(tree, "supabase/migrations/unapproved.sql"),
+    "select 1;",
+  );
+  await expect(workspace.inspect(run)).rejects.toThrow(/migration/);
+});
+it("bounds huge diffs and rejects secrets before returning model context", async () => {
+  const run = await planned();
+  await workspace.isolate(run, "owner");
+  const file = join(dir, "workspaces", run.id, "worktree", "src/sample.ts");
+  await writeFile(file, "x".repeat(97000));
+  await expect(workspace.inspect(run)).rejects.toThrow(/review budget/);
+  await writeFile(file, 'const api_key = "sk-abcdefghijklmnopqrstuvwxyz";');
+  await expect(workspace.inspect(run)).rejects.toThrow(/secret/);
+});
+it("returns actual new-file content rather than the original patch proposal", async () => {
+  const { run, id } = await patched();
+  const current = await advance(id, "IMPLEMENTATION");
+  const path = join(dir, "workspaces", run.id, "worktree", "tests/new.test.ts");
+  await writeFile(path, "// actual changed evidence");
+  const inspected = await workspace.inspect(current);
+  expect(inspected.diff).toContain("actual changed evidence");
+  expect(inspected.files).toContain("tests/new.test.ts");
+});
+it("records each command durably with its operation and candidate", async () => {
+  const { run, id } = await patched();
+  const current = await advance(id, "TEST");
+  const receipt = JSON.parse(
+    await readFile(
+      join(dir, "workspaces", run.id, "command-focused.json"),
+      "utf8",
+    ),
+  );
+  expect(receipt.status).toBe("done");
+  expect(receipt.candidate).toBe(current.workspace?.candidate);
+  expect(receipt.timeout_ms).toBe(60000);
+  expect(receipt.network).toBe("denied");
+  expect(receipt.result.exit_code).toBe(0);
+});
+it.runIf(process.platform === "darwin")(
+  "rejects command injection/chaining and focused path traversal",
+  async () => {
+    for (const command of [
+      "bash",
+      "test; touch /tmp/escaped",
+      "npm install",
+      "git push",
+    ])
+      await expect(runSandboxed(command as any, dir, dir, [])).rejects.toThrow(
+        /allowlisted/,
+      );
+    for (const path of [
+      "../escape",
+      "tests/a.test.ts;echo",
+      "--reporter=evil",
+      "/tmp/a.test.ts",
+    ])
+      await expect(runSandboxed("focused", dir, dir, [path])).rejects.toThrow();
+  },
+);
+it("requests a durable mission pause when scope drift is detected", async () => {
+  const { run, id } = await patched();
+  await writeFile(
+    join(dir, "workspaces", run.id, "worktree", "unapproved.txt"),
+    "unapproved change",
+  );
+  await expect(service.verify(run.id, "workspace")).rejects.toThrow(/scope/);
+  expect((await f.engine.inspect(id)).mission?.state).toBe("PAUSED");
+});
+it.runIf(process.platform === "darwin")(
+  "cancels a real running sandbox process and returns an exit receipt",
+  async () => {
+    const scratch = join(await realpath(dir), "validation-focused");
+    const deps = await realpath("node_modules");
+    await mkdir(join(scratch, "tests"), { recursive: true });
+    await writeFile(
+      join(scratch, "tests/wait.test.ts"),
+      'import {it} from "vitest";it("wait",async()=>{await new Promise(()=>{});},60000);',
+    );
+    const { symlink } = await import("node:fs/promises");
+    await symlink(deps, join(scratch, "node_modules"));
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 1500);
+    try {
+      const result = await runSandboxed(
+        "focused",
+        scratch,
+        deps,
+        ["tests/wait.test.ts"],
+        abort.signal,
+      );
+      expect(result.termination).toBe("cancelled");
+      expect(result.signal).toBeTruthy();
+      expect(result.duration_ms).toBeLessThan(10000);
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+  15000,
+);
+
+it("rejects credential filenames before Git source inspection", async () => {
+  for (const path of [
+    ".npmrc",
+    ".ssh/id_rsa",
+    ".aws/credentials",
+    "config/client.pem",
+    "vault.json",
+  ])
+    await expect(workspace.source(base, [path])).rejects.toThrow(
+      /Secret inspection/,
+    );
 });

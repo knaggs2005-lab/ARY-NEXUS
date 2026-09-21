@@ -1,6 +1,13 @@
+import { AppError } from "./validation";
 import { z } from "zod";
 import type { Json } from "./models";
 import type { PlanSpec } from "./orchestration";
+
+export class WorkspacePolicyError extends AppError {
+  constructor(message: string) {
+    super(message, 409);
+  }
+}
 
 export const DEVELOPMENT = "self_development_v1";
 export const sha = z.string().regex(/^[a-f0-9]{64}$/);
@@ -104,6 +111,9 @@ export interface CommandReceipt {
   duration_ms: number;
   output: string;
   truncated: boolean;
+  termination?: "exited" | "timeout" | "cancelled" | "output_limit";
+  timeout_ms?: number;
+  output_bytes?: number;
 }
 export interface ValidationReceipt {
   candidate: string;
@@ -196,11 +206,25 @@ export interface DevelopmentExecutor {
     operation: string,
     signal?: AbortSignal,
   ): Promise<ValidationReceipt>;
+  cleanup(run: DevelopmentRun): Promise<{
+    removed: boolean;
+    branch_retained: boolean;
+    evidence_retained: boolean;
+  }>;
   releaseReservation(run: DevelopmentRun): Promise<void>;
+}
+/** File-name boundary complements content redaction; no credential-file inspection. */
+export function secretPath(path: string) {
+  return (
+    /(^|\/)(?:\.env[^/]*|\.git|\.data|\.ssh|\.aws|\.config|\.npmrc|credentials?|secrets?|vault|id_rsa|id_ed25519)(?:\/|\.|$)/i.test(
+      path,
+    ) || /\.(?:pem|key|p12|pfx)$/i.test(path)
+  );
 }
 /** No secret inspection or authority modification through this capability, even with ADMIN approval. */
 export function forbiddenPath(path: string) {
   return (
+    secretPath(path) ||
     /(^|\/)(\.env[^/]*|\.git|\.data|node_modules|credentials?|secrets?|vault)(\/|\.|$)/i.test(
       path,
     ) ||

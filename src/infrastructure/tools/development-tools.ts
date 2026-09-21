@@ -59,6 +59,10 @@ export function registerDevelopmentTools(
       .strict(),
     execute: (i) => service.source(i.base_commit, i.paths),
   });
+  register("development.cleanup", {
+    inputSchema: id,
+    execute: (i, c) => service.cleanup(i.run_id, c),
+  });
   register("development.unlock", {
     inputSchema: id,
     execute: (i, c) => service.unlock(i.run_id, c),

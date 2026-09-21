@@ -6,6 +6,7 @@ import type { ExecutionPlan } from "../domain/orchestration";
 import type { Json, Message } from "../domain/models";
 import {
   DEVELOPMENT,
+  WorkspacePolicyError,
   engineeringSpec,
   forbiddenPath,
   protectedPath,
@@ -35,7 +36,7 @@ export class SelfDevelopmentService {
   async verify(id: string, stage: string) {
     const { run } = await this.read(id);
     const candidate = run.workspace
-      ? (await this.executor.inspect(run)).candidate
+      ? (await this.inspectWorkspace(run)).candidate
       : null;
     const verified =
       stage === "workspace"
@@ -369,7 +370,7 @@ export class SelfDevelopmentService {
     const { row, run } = await this.stage(id, "TEST", c);
     if (!run.validation?.passed)
       throw new AppError("Failed validation blocks review/release", 409);
-    const snapshot = await this.executor.inspect(run);
+    const snapshot = await this.inspectWorkspace(run);
     if (snapshot.candidate !== run.validation.candidate)
       throw new AppError("Candidate changed after tests", 409);
     if (!this.model.reasonWithUsage)
@@ -433,7 +434,7 @@ export class SelfDevelopmentService {
   }
   async release(id: string, c: ToolExecutionContext) {
     const { row, run } = await this.stage(id, "REVIEW", c);
-    const snapshot = await this.executor.inspect(run);
+    const snapshot = await this.inspectWorkspace(run);
     if (
       !run.validation?.passed ||
       !run.review?.ready ||
@@ -491,7 +492,7 @@ export class SelfDevelopmentService {
     const mission = await this.missions.inspect(run.mission_id!);
     if (["CANCELLED", "FAILED", "COMPLETED"].includes(mission.mission!.state))
       throw new AppError("Mission is closed", 409);
-    if ((await this.executor.inspect(run)).candidate !== run.review?.candidate)
+    if ((await this.inspectWorkspace(run)).candidate !== run.review?.candidate)
       throw new AppError("Candidate changed after release", 409);
     run.decision = {
       accept,
@@ -503,6 +504,29 @@ export class SelfDevelopmentService {
       ...this.save(row, run, "Owner merge decision (no merge)", c),
       mission_id: run.mission_id!,
       submit_event: "owner_decision",
+    };
+  }
+  async cleanup(id: string, c: ToolExecutionContext) {
+    this.guard(c);
+    const { row, run } = await this.read(id);
+    if (
+      !run.mission_id ||
+      (await this.missions.inspect(run.mission_id)).mission?.state !==
+        "COMPLETED"
+    )
+      throw new AppError(
+        "Only completed missions may clean up a workspace",
+        409,
+      );
+    const result = await this.executor.cleanup(run);
+    return {
+      ...this.save(
+        row,
+        run,
+        "Owner approved clean worktree removal; evidence/branch retained",
+        c,
+      ),
+      ...result,
     };
   }
   async unlock(id: string, c: ToolExecutionContext) {
@@ -527,6 +551,17 @@ export class SelfDevelopmentService {
       "Owner releases workspace reservation; files retained",
       c,
     );
+  }
+  private async inspectWorkspace(run: DevelopmentRun) {
+    try {
+      return await this.executor.inspect(run);
+    } catch (error) {
+      if (error instanceof WorkspacePolicyError && run.mission_id) {
+        const mission = await this.missions.inspect(run.mission_id);
+        await this.missions.control(run.mission_id, "pause", mission.revision);
+      }
+      throw error;
+    }
   }
   private async monitored<T>(
     run: DevelopmentRun,
@@ -568,6 +603,12 @@ export class SelfDevelopmentService {
     }, 250);
     try {
       return await work(signal);
+    } catch (error) {
+      if (error instanceof WorkspacePolicyError) {
+        const mission = await this.missions.inspect(run.mission_id!);
+        await this.missions.control(run.mission_id!, "pause", mission.revision);
+      }
+      throw error;
     } finally {
       clearInterval(timer);
     }
@@ -575,7 +616,7 @@ export class SelfDevelopmentService {
   async finalize(id: string, c: ToolExecutionContext) {
     const { row, run } = await this.stage(id, "RELEASE_CANDIDATE", c);
     if (!run.decision) throw new AppError("Owner decision required", 409);
-    if ((await this.executor.inspect(run)).candidate !== run.review?.candidate)
+    if ((await this.inspectWorkspace(run)).candidate !== run.review?.candidate)
       throw new AppError("Candidate changed after decision", 409);
     run.phase = run.decision.accept ? "COMPLETED" : "REJECTED";
     // Reservation release is a separate approved operation after the terminal DB checkpoint.

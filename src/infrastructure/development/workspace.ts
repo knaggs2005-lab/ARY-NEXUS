@@ -21,9 +21,19 @@ import type {
   ValidationReceipt,
   CommandName,
 } from "../../domain/self-development";
-import { forbiddenPath, sourcePath } from "../../domain/self-development";
+import {
+  forbiddenPath,
+  secretPath,
+  sourcePath,
+  protectedPath,
+  WorkspacePolicyError,
+} from "../../domain/self-development";
 import { AppError } from "../../domain/validation";
-import { runSandboxed, type SandboxedCommand } from "./runner";
+import {
+  runSandboxed,
+  commandTimeoutMs,
+  type SandboxedCommand,
+} from "./runner";
 
 const exec = promisify(execFile);
 export const contentHash = (s: string | Buffer) =>
@@ -57,6 +67,24 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     return join(this.root, run.id);
   }
   private git(cwd: string, args: string[]) {
+    const allowed = [
+      "rev-parse",
+      "symbolic-ref",
+      "ls-files",
+      "diff",
+      "show",
+      "status",
+      "worktree",
+    ];
+    if (
+      !allowed.includes(args[0]) ||
+      (args[0] === "worktree" && !["add", "remove"].includes(args[1])) ||
+      args.includes("--force") ||
+      args.includes("-f")
+    )
+      throw new AppError("Git operation not allowlisted", 403);
+    if (cwd !== this.repository && !cwd.startsWith(this.root + "/"))
+      throw new AppError("Git cwd escape", 403);
     return exec(
       "/usr/bin/git",
       [
@@ -85,7 +113,15 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
           GIT_OPTIONAL_LOCKS: "0",
         },
       },
-    ).then((r) => r.stdout);
+    )
+      .then((r) => r.stdout)
+      .catch(() => {
+        // execFile errors can embed source output; never publish raw stderr/stdout.
+        throw new AppError(
+          `Bounded Git ${args[0]} failed; workspace retained for inspection`,
+          409,
+        );
+      });
   }
   private async store(path: string, value: unknown) {
     const tmp = path + ".tmp";
@@ -113,7 +149,7 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
         owner.repository !== this.repository
       )
         throw new AppError(
-          "Repository reserved by another development run; queued until owner releases it",
+          "Repository reserved by another development run; blocked until owner releases it",
           409,
         );
     }
@@ -127,6 +163,8 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     await this.reservation(run);
     const dir = this.directory(run);
     await mkdir(dir, { recursive: true, mode: 0o700 });
+    if ((await realpath(dir)) !== dir)
+      throw new WorkspacePolicyError("Workspace directory alias");
     const receipt = join(dir, `${name}.json`);
     try {
       const old = JSON.parse(await readFile(receipt, "utf8"));
@@ -152,7 +190,92 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
   private worktree(run: DevelopmentRun) {
     return join(this.directory(run), "worktree");
   }
+  private async ownership(run: DevelopmentRun) {
+    const tree = this.worktree(run);
+    if (
+      (await realpath(this.directory(run))) !== this.directory(run) ||
+      (await realpath(tree)) !== tree
+    )
+      throw new WorkspacePolicyError("Workspace symlink escape");
+    const owner = JSON.parse(
+      await readFile(join(this.directory(run), "ownership.json"), "utf8"),
+    );
+    if (
+      owner.run !== run.id ||
+      owner.owner !== run.owner ||
+      owner.repository !== this.repository ||
+      owner.scope !== run.plan_hash
+    )
+      throw new WorkspacePolicyError("Workspace ownership or scope changed");
+    if (
+      (await this.git(tree, ["symbolic-ref", "--short", "HEAD"])).trim() !==
+        `ary/dev/${run.id}` ||
+      (await realpath(
+        (await this.git(tree, ["rev-parse", "--show-toplevel"])).trim(),
+      )) !== tree
+    )
+      throw new WorkspacePolicyError(
+        "Not the owned development branch/worktree; main is forbidden",
+      );
+    const common = (
+      await this.git(tree, [
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+      ])
+    ).trim();
+    if ((await realpath(common)) !== owner.common)
+      throw new WorkspacePolicyError("Foreign Git worktree");
+  }
+  private async safePath(tree: string, path: string) {
+    sourcePath.parse(path);
+    let current = tree;
+    for (const segment of path.split("/")) {
+      current = join(current, segment);
+      try {
+        const stat = await lstat(current);
+        if (stat.isSymbolicLink() || (stat.isFile() && stat.nlink !== 1))
+          throw new WorkspacePolicyError("Symlink or hardlink escape");
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+      }
+    }
+  }
+  private async changed(run: DevelopmentRun) {
+    const tree = this.worktree(run);
+    const names = [
+      ...new Set(
+        (
+          (await this.git(tree, [
+            "diff",
+            "--name-only",
+            "-z",
+            run.plan!.base_commit,
+            "--",
+          ])) + (await this.git(tree, ["ls-files", "--others", "-z"]))
+        )
+          .split("\0")
+          .filter(Boolean),
+      ),
+    ].sort();
+    for (const path of names) {
+      await this.safePath(tree, path);
+      if (forbiddenPath(path))
+        throw new WorkspacePolicyError(
+          "Dependency, secret or protected authority change requires separate elevated human review",
+        );
+      if (protectedPath(path) && !run.protected_approval)
+        throw new WorkspacePolicyError(
+          "Protected/migration change requires elevated approval",
+        );
+      if (!run.plan!.paths.includes(path))
+        throw new WorkspacePolicyError("Changed file outside approved scope");
+    }
+    return names;
+  }
   private async files(run: DevelopmentRun, includePatch = true) {
+    await this.ownership(run);
+    await this.changed(run);
     const tree = this.worktree(run);
     const tracked = (await this.git(tree, ["ls-files", "-z"]))
       .split("\0")
@@ -161,14 +284,14 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
       (await this.git(tree, ["rev-parse", "HEAD"])).trim() !==
       run.plan!.base_commit
     )
-      throw new AppError("Worktree base changed", 409);
+      throw new WorkspacePolicyError("Worktree base changed");
     const untracked = (await this.git(tree, ["ls-files", "--others", "-z"]))
       .split("\0")
       .filter(Boolean);
     if (
       untracked.some((p) => !run.patch?.value.changes.some((c) => c.path === p))
     )
-      throw new AppError("Unexpected untracked worktree file", 409);
+      throw new WorkspacePolicyError("Unexpected untracked worktree file");
     const names = [
       ...new Set([
         ...tracked,
@@ -181,14 +304,12 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     let totalBytes = 0;
     for (const p of names) {
       sourcePath.parse(p);
-      if (
-        p !== ".env.example" &&
-        /(^|\/)(?:\.env[^/]*|\.data|credentials?|secrets?)(?:\/|$)/i.test(p)
-      )
+      if (p !== ".env.example" && secretPath(p))
         throw new AppError(
           "Tracked secrets cannot enter development snapshot",
           403,
         );
+      await this.safePath(tree, p);
       let stat;
       try {
         stat = await lstat(join(tree, p));
@@ -241,6 +362,23 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
           tree,
           base,
         ]);
+        await this.store(join(this.directory(run), "ownership.json"), {
+          run: run.id,
+          owner: run.owner,
+          repository: this.repository,
+          scope: run.plan_hash,
+          common: await realpath(
+            (
+              await this.git(this.repository, [
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-common-dir",
+              ])
+            ).trim(),
+          ),
+          action: operation,
+          created_at: new Date().toISOString(),
+        });
         const files = await this.files(run);
         return { branch, base, candidate: files.candidate };
       },
@@ -255,7 +393,9 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
         if (
           (await this.files(run, false)).candidate !== run.workspace!.candidate
         )
-          throw new AppError("Worktree changed before implementation", 409);
+          throw new WorkspacePolicyError(
+            "Worktree changed before implementation",
+          );
         const tree = this.worktree(run);
         const tracked = (await this.files(run, false)).names;
         for (const change of run.patch!.value.changes) {
@@ -266,6 +406,9 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
             !run.plan!.paths.includes(change.path)
           )
             throw new AppError("Protected or out-of-scope patch", 403);
+          if (protectedPath(change.path) && !run.protected_approval)
+            throw new WorkspacePolicyError("Elevated approval required");
+          await this.safePath(tree, change.path);
           const target = resolve(tree, change.path);
           if (!target.startsWith(tree + "/"))
             throw new AppError("Path escape", 403);
@@ -297,6 +440,7 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
         }
         for (const change of run.patch!.value.changes) {
           signal?.throwIfAborted();
+          await this.safePath(tree, change.path);
           const target = join(tree, change.path);
           await writeFile(target + ".ary-part", change.content, {
             mode: 0o600,
@@ -324,16 +468,26 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
       if (change.before === null && run.phase !== "WORKSPACE")
         diff +=
           `\n+++ ${change.path}\n` +
-          change.content
+          (await readFile(join(tree, change.path), "utf8"))
             .split("\n")
             .map((l) => "+" + l)
             .join("\n");
     if (diff.length > 96000)
-      throw new AppError("Diff exceeds review budget", 413);
+      throw new WorkspacePolicyError(
+        "Diff exceeds 96000-character review budget; owner scope revision required",
+      );
+    if (
+      /sk-[A-Za-z0-9_-]{10,}|-----BEGIN .*PRIVATE KEY-----|(?:api[_-]?key|password|token|secret)\s*[:=]\s*[\"\'][^\"\']{8,}/i.test(
+        diff,
+      )
+    )
+      throw new WorkspacePolicyError(
+        "Potential secret in diff; human inspection required",
+      );
     return {
       candidate,
       diff,
-      files: run.patch?.value.changes.map((c) => c.path) ?? [],
+      files: await this.changed(run),
     };
   }
   async validate(run: DevelopmentRun, operation: string, signal?: AbortSignal) {
@@ -344,7 +498,7 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
       async () => {
         const snapshot = await this.files(run);
         if (snapshot.candidate !== run.workspace!.candidate)
-          throw new AppError("Candidate drift", 409);
+          throw new WorkspacePolicyError("Candidate drift");
         const dependencies = await realpath(this.dependencies);
         const commands = [];
         for (const name of [
@@ -356,7 +510,7 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
         ] as CommandName[]) {
           signal?.throwIfAborted();
           if ((await this.files(run)).candidate !== snapshot.candidate)
-            throw new AppError("Candidate drift", 409);
+            throw new WorkspacePolicyError("Candidate drift");
           const scratch = join(this.directory(run), `validation-${name}`);
           await mkdir(scratch, { mode: 0o700 });
           for (const p of snapshot.names) {
@@ -374,18 +528,54 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
                 join(dependencies, entry),
                 join(scratch, "node_modules", entry),
               );
-          commands.push(
-            await this.runner(
+          const journal = join(this.directory(run), `command-${name}.json`);
+          await this.store(journal, {
+            status: "started",
+            operation_id: operation,
+            candidate: snapshot.candidate,
+            command: name,
+            cwd: `validation-${name}`,
+            timeout_ms: commandTimeoutMs[name],
+            started_at: new Date().toISOString(),
+            network: "denied",
+          });
+          let result;
+          try {
+            result = await this.runner(
               name,
               scratch,
               dependencies,
               run.plan!.focused_tests,
               signal,
-            ),
-          );
+            );
+          } catch {
+            await this.store(journal, {
+              status: "failed",
+              operation_id: operation,
+              candidate: snapshot.candidate,
+              command: name,
+              error: "Runner failed or cancelled; no automatic retry",
+              completed_at: new Date().toISOString(),
+            });
+            throw new AppError(
+              "Development command failed; inspect durable command receipt",
+              409,
+            );
+          }
+          commands.push(result);
+          await this.store(journal, {
+            status: "done",
+            operation_id: operation,
+            candidate: snapshot.candidate,
+            cwd: `validation-${name}`,
+            timeout_ms: commandTimeoutMs[name],
+            network: "denied",
+            completed_at: new Date().toISOString(),
+            result,
+          });
         }
         if ((await this.files(run)).candidate !== snapshot.candidate)
-          throw new AppError("Candidate drift", 409);
+          throw new WorkspacePolicyError("Candidate drift");
         return {
           candidate: snapshot.candidate,
           commands,
@@ -405,12 +595,7 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     const result = [];
     for (const p of paths) {
       sourcePath.parse(p);
-      if (
-        /(^|\/)(?:\.env[^/]*|\.git|\.data|credentials?|secrets?|vault)(?:\/|$)/i.test(
-          p,
-        )
-      )
-        throw new AppError("Secret inspection forbidden", 403);
+      if (secretPath(p)) throw new AppError("Secret inspection forbidden", 403);
       const content = await this.git(this.repository, ["show", `${base}:${p}`]);
       if (content.length > 32000)
         throw new AppError("Source exceeds inspection budget", 413);
@@ -423,6 +608,34 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     }
     return result;
   }
+  async cleanup(run: DevelopmentRun) {
+    if (!["COMPLETED", "REJECTED"].includes(run.phase))
+      throw new AppError(
+        "Explicit completed owner decision required before cleanup",
+        409,
+      );
+    return this.operation(run, "cleanup", run.plan_hash!, async () => {
+      await this.ownership(run);
+      const tree = this.worktree(run);
+      // Includes ignored files. Never force, git-clean, reset, remove branches or recursively delete scratch/evidence.
+      if (
+        (
+          await this.git(tree, [
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+          ])
+        ).trim() ||
+        (await this.git(tree, ["ls-files", "--others", "-z"])).length
+      )
+        throw new AppError(
+          "Dirty worktree or unknown files retained; cleanup refused",
+          409,
+        );
+      await this.git(this.repository, ["worktree", "remove", tree]);
+      return { removed: true, branch_retained: true, evidence_retained: true };
+    });
+  }
   async releaseReservation(run: DevelopmentRun) {
     await this.init();
     try {
@@ -432,7 +645,12 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
       throw e;
     }
     await this.reservation(run);
-    for (const name of ["workspace", "implementation", "validation"]) {
+    for (const name of [
+      "workspace",
+      "implementation",
+      "validation",
+      "cleanup",
+    ]) {
       try {
         const r = JSON.parse(
           await readFile(join(this.directory(run), `${name}.json`), "utf8"),

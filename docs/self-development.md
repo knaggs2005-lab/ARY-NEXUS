@@ -7,6 +7,92 @@ This implementation section supersedes the proposed filenames and design-only
 status in that historical audit. No database migration, dependency, Brain, voice,
 GPT-Live, transport, provider configuration or deployment change was made.
 
+## Workspace execution hardening — September 20, 2026
+
+Extends the existing Phase 1 implementation on the same feature branch; no parallel
+executor, permissions store, database migration or new dependency. The prior code
+already supplied real Git worktrees, immutable patch application, five sandboxed
+checks, repository reservation, and canonical action/mission integration.
+
+This pass adds:
+
+- A durable ownership manifest binding run, owner, repository/common Git directory,
+  plan hash, creating action and creation time. Every file operation verifies the
+  exact `ary/dev/<run-id>` branch and owned real worktree path; main, foreign
+  worktrees, parent symlinks and hardlinks fail closed.
+- Actual Git changed-file discovery (including untracked/ignored files) rather than
+  treating the proposal list as execution evidence. New-file diffs use disk contents.
+  Out-of-scope, dependency/authority and unapproved protected/migration changes stop
+  execution. Policy failures request pause through the existing durable MissionEngine
+  control path. Pause never silently expands approved scope.
+- A 96,000-character diff budget and potential-secret rejection before review/model
+  context. Git failures omit raw process output. Existing source and patch limits remain.
+- Durable per-command started/result receipts, linked to action operation and candidate,
+  with relative cwd, fixed timeout and network policy. Native receipts distinguish
+  cancellation, timeout, output-limit termination and ordinary exit. A process crash
+  leaves an uncertain started receipt, never an automatic retry.
+- `development.cleanup`, a mandatory-approval capability usable only after a completed
+  mission and owner completion/rejection. It runs non-forced `git worktree remove`
+  only when no tracked, untracked or ignored work remains. Branches, validation
+  snapshots, ownership and evidence journals are retained. Dirty work is never reset,
+  stashed, committed or deleted to make cleanup possible. A refused/uncertain cleanup
+  requires manual inspection; there is no automatic cleanup retry.
+
+### Command policy
+
+No caller-supplied executable, shell, cwd, script body, timeout, network exception or
+Git argument array is exposed. The five existing profiles invoke installed CLIs:
+`test` (Vitest), `focused` (validated `tests/*.test.ts[x]` paths), `typecheck` (tsc),
+`format` (Prettier check, not rewrite), and `build` (Next webpack). These implement
+approved existing project script semantics without npm lifecycle hooks. There is no
+lint script configured. Other scripts (including live provider diagnostics), package
+installation, dependency edits and arbitrary `npm run` remain unavailable. Adding a
+profile requires reviewed host code, not a model argument.
+
+Commands run in fresh isolated copies, never in main or the writable candidate.
+macOS deny-default sandbox remains mandatory: no network, credentials, writable
+installed dependencies or host data access. Fixed ceilings are five minutes for test/build, two minutes for typecheck and one
+minute for focused tests/format, with a
+2-MiB output kill budget, 512-KiB retained output ceiling, cancellation and exit
+status. Git operations remain private fixed callsites plus a verb allowlist, shell
+false, 15-second limit and bounded output; no merge/push/reset/clean/force verb.
+Git itself runs against the trusted local repository, not an arbitrary remote repo.
+
+All runs for one configured repository root are serialized, including disjoint scopes.
+This conservative overlap policy is intentional. Dependency and core-authorization
+changes are denied even with ADMIN; migration and other protected proposals require
+existing `build_protected` approval. Elevated review is not an automatic grant of
+package installation, migration execution, deployment or weakened permissions.
+
+### Verification for this pass
+
+40 focused self-development tests; 1,772 full-suite tests across 109 files. Production
+build and TypeScript pass. Formatting retains the same four pre-existing warnings:
+`src/components/calls/calls-panel.tsx`, the pre-existing phone block in
+`src/domain/permissions.ts`, `src/infrastructure/phone/twilio-phone.ts`, and
+`src/services/phone-service.ts`. New/changed development files are formatted.
+Generated duplicate `.next` type artifacts encountered on the first check were
+preserved outside the repository and regenerated; no source typing workaround.
+
+Added adversarial coverage: branch/main substitution, parent symlink escape, forged
+ownership, dirty/unknown-file cleanup, completion/approval/replay, dependency and
+migration changes, oversized/secret diffs, actual new-file evidence, per-command
+receipts, injection/chaining/traversal, durable scope-drift pause, credential filenames,
+and cancellation of a real running sandbox process. Prior restart/overlap/protected
+path/permission and lifecycle tests remain intact. No production effects exercised.
+
+### Remaining boundaries
+
+This is a supervised, trusted-owner, single-host pilot, not a hostile multi-user VM.
+A malicious same-user process can race filesystem checks; OS sandboxing covers development
+commands, not a compromised host or tampered trusted Git configuration. Secret filters
+are conservative pattern checks, not exhaustive DLP. Credentials must never be committed
+to source. No network-enabled command profile, arbitrary repository-script execution,
+automated uncertain-operation repair, dependency-changing build or automatic push exists.
+Full lifecycle acceptance uses fixture reviewer/command providers; real sandbox probes
+exercise OS containment, fixed Vitest execution and running cancellation. No claim of
+live autonomous source generation or release is made.
+
 ## Phase 1 implementation
 
 ### Reused authority and persistence
@@ -94,7 +180,7 @@ network access remains denied. macOS Seatbelt denies host data reads, writes out
 the scratch directory, dependency writes, external/loopback network and signals to
 unrelated processes. Node/system runtime libraries and directory metadata needed to
 resolve approved paths are readable. Each command receives a fresh candidate copy,
-read-only dependency links, bounded output, a 45-second timeout and a 2 GB Node heap
+read-only dependency links, bounded output, a fixed command-specific timeout and a 2 GB Node heap
 limit. Cancellation kills the owned process group. Mission cancellation/pause/lease
 loss is also checked during execution. No unsandboxed fallback exists.
 

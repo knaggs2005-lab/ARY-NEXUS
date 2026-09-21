@@ -5,8 +5,17 @@ import type {
   CommandReceipt,
   CommandName,
 } from "../../domain/self-development";
+import { sourcePath } from "../../domain/self-development";
 import { AppError } from "../../domain/validation";
 
+/** Fixed host policy; callers cannot supply a timeout or broaden command authority. */
+export const commandTimeoutMs: Record<CommandName, number> = {
+  test: 300000,
+  focused: 60000,
+  typecheck: 120000,
+  format: 60000,
+  build: 300000,
+};
 /** OS-enforced deny-default boundary. No host home, credential environment, network or writable dependencies. */
 export function sandboxProfile(
   scratch: string,
@@ -46,6 +55,22 @@ export const runSandboxed: SandboxedCommand = async (
       "Development runner requires the verified macOS sandbox; no host-execution fallback",
       503,
     );
+  if (!["test", "focused", "typecheck", "format", "build"].includes(command))
+    throw new AppError("Command not allowlisted", 403);
+  for (const path of focused) {
+    sourcePath.parse(path);
+    if (!/^tests\/.*\.test\.tsx?$/.test(path))
+      throw new AppError("Invalid focused test path", 403);
+  }
+  if (
+    (await realpath(scratch)) !== scratch ||
+    !/\/validation-(test|focused|typecheck|format|build)$/.test(scratch)
+  )
+    throw new AppError(
+      "Command cwd must be an isolated validation snapshot",
+      403,
+    );
+  dependencies = await realpath(dependencies);
   const node = await realpath(process.execPath);
   const nodeRoot = dirname(dirname(node));
   const commands: Record<CommandName, string[]> = {
@@ -85,6 +110,8 @@ export const runSandboxed: SandboxedCommand = async (
       bytes = 0,
       truncated = false,
       settled = false;
+    let termination: "exited" | "timeout" | "cancelled" | "output_limit" =
+      "exited";
     const child = spawn(
       "/usr/bin/sandbox-exec",
       [
@@ -121,21 +148,33 @@ export const runSandboxed: SandboxedCommand = async (
           /* already exited */
         }
     };
-    const timer = setTimeout(kill, 45000);
-    signal?.addEventListener("abort", kill, { once: true });
-    if (signal?.aborted) kill();
+    const cancel = () => {
+      termination = "cancelled";
+      kill();
+    };
+    const timer = setTimeout(() => {
+      termination = "timeout";
+      kill();
+    }, commandTimeoutMs[command]);
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
     function collect(chunk: Buffer) {
       bytes += chunk.length;
+      if (output.length + chunk.toString("utf8").length > 524288)
+        truncated = true;
       if (output.length < 524288)
         output += chunk.toString("utf8").slice(0, 524288 - output.length);
       else truncated = true;
-      if (bytes > 2 * 1024 * 1024) kill();
+      if (bytes > 2 * 1024 * 1024) {
+        termination = "output_limit";
+        kill();
+      }
     }
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);
     child.once("error", (e) => {
       clearTimeout(timer);
-      signal?.removeEventListener("abort", kill);
+      signal?.removeEventListener("abort", cancel);
       settled = true;
       reject(new AppError(`Sandbox runner unavailable: ${e.name}`, 503));
     });
@@ -143,14 +182,17 @@ export const runSandboxed: SandboxedCommand = async (
       kill();
       settled = true;
       clearTimeout(timer);
-      signal?.removeEventListener("abort", kill);
+      signal?.removeEventListener("abort", cancel);
       resolve({
         command,
         exit_code: code,
         signal: exitSignal,
         duration_ms: Date.now() - started,
+        termination,
+        timeout_ms: commandTimeoutMs[command],
+        output_bytes: bytes,
         output: output.replace(
-          /(?:sk-[A-Za-z0-9_-]{10,}|Bearer\s+[^\s]+)/g,
+          /(?:sk-[A-Za-z0-9_-]{10,}|Bearer\s+[^\s]+|(?:api[_-]?key|password|token|secret)\s*[:=]\s*[^\s]+|-----BEGIN [\s\S]*?PRIVATE KEY-----[\s\S]*?-----END [\s\S]*?PRIVATE KEY-----)/gi,
           "[REDACTED]",
         ),
         truncated,

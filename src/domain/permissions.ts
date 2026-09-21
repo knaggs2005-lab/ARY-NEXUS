@@ -1019,6 +1019,8 @@ Object.assign(toolRegistry, {
 for (const [verb, description] of Object.entries({
   verify: "Independently read back a durable stage and candidate hash",
   source: "Inspect bounded non-secret repository source at an exact commit",
+  cleanup:
+    "Remove only a clean completed owned worktree; preserve branch and evidence",
   unlock:
     "Release a terminal development reservation after all operations are known complete; retain files",
   observe: "Cite canonical evidence for an engineering observation",
