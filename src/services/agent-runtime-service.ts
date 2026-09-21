@@ -186,6 +186,13 @@ export class AgentRuntimeService implements AgentRuntime {
       "mock.fetch_project_summary",
       "mock.create_note",
       "mock.draft_message",
+      // Engineering workers may inspect/propose only. Build/execute/merge decisions stay owner-gated.
+      "development.source",
+      "development.inspect",
+      "development.observe",
+      "development.propose",
+      "development.plan",
+      "development.patch",
     ]);
     for (const tool of input.tool_access) {
       if (!supported.has(tool) || !getToolDefinition(tool))

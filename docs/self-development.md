@@ -1,10 +1,198 @@
 # Supervised Ary self-development — architecture audit
 
-Status: **DESIGN ONLY; implementation not started.** Audited September 20, 2026,
-against `0f723740335be03e4f13555a7cfe2f791abbe44f` on `main`.
-Repository: `/Users/austin/Documents/Clevaryn/Premiere Plugins/QACutter/ary-nexus`.
-No runtime, dependency, credential, permission, schema, or deployment change is
-authorized by this document. Existing roadmap DONE entries and NEXT 3 are unchanged.
+Status: **Phase 1 implemented as a default-disabled, supervised single-host pilot.**
+Implementation September 20, 2026, on `codex/supervised-self-development-v1`.
+The original audit below was against `0f723740335be03e4f13555a7cfe2f791abbe44f`.
+This implementation section supersedes the proposed filenames and design-only
+status in that historical audit. No database migration, dependency, Brain, voice,
+GPT-Live, transport, provider configuration or deployment change was made.
+
+## Phase 1 implementation
+
+### Reused authority and persistence
+
+`SelfDevelopmentService` is a domain adapter, not an execution engine. Its bounded
+run artifact lives in the owner's existing `messages.metadata.self_development_v1`.
+The existing `CheckpointMissionEngine` owns scheduling, leases, waits, cancellation,
+restart and step state. Existing `ToolRegistry`, `ActionRequestService`,
+`ActionService` and `PermissionService` own validation, exact approvals, execution
+keys, action/outcome receipts and event emission. Existing AgentRuntime profiles can
+be explicitly granted engineering inspect/proposal/plan/patch capabilities, never
+owner build/merge-decision capabilities. No new assistants or memories are created.
+Hermes remains an optional advisory author: findings confer no execution authority.
+
+Observations must cite owned messages/actions/outcomes/tasks/entities. Their exact
+source IDs, hashes and snapshots are retained. Plans, patches, test receipts, review
+and release manifests are versioned by compare-and-set on the canonical message.
+Every transition records its role and action ID; the action records the requester,
+permission and approval. Mission source/steps point back to the same run ID. The
+release manifest connects the original plan/base, branch, exact diff, file list,
+candidate hash, tests, reviewer and manual rollback approach. Existing OutcomeEngine
+can assess the action evidence; `ReleasedDevelopmentOutcome` defines the future
+verified-merge/metric linkage only. No automatic memory writes or benefit claims.
+
+### Tools and lifecycle
+
+| Role/stage           | Native capability                                   | Authority and evidence                                                                                                             |
+| -------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Observer             | `development.observe`, `development.propose`        | Canonical evidence mandatory; no source edits                                                                                      |
+| Architect            | `development.source`, `development.plan`            | Exact base commit; bounded source; file scope, acceptance, risks, rollback and focused tests                                       |
+| Owner build          | `development.build` / `development.build_protected` | Exact immutable plan hash; mandatory approval; protected variant also requires ADMIN                                               |
+| Dev workspace        | `development.workspace`                             | One reserved Git worktree, `ary/dev/<run-id>`; never the live checkout                                                             |
+| Dev proposal         | `development.patch`, `development.patch_ready`      | Exact preimage hashes, bounded contents, immutable patch hash; owner can inspect before execution                                  |
+| Dev implementation   | `development.implement`                             | Separately approved exact patch hash; mission lease required                                                                       |
+| Test                 | `development.test`                                  | Fixed validation commands; separate fresh snapshot per command; no implementation edits                                            |
+| Security/Review      | `development.review`                                | Separate configured-provider invocation with no author history/memory/tools; nine strict security findings; concerns/unknown block |
+| Release              | `development.release`                               | Tests/review/candidate must agree; exact bounded diff and manual rollback evidence                                                 |
+| Owner decision       | `development.decide`                                | Exact release hash, approve/reject and reason; cannot be invoked as an agent                                                       |
+| Completion           | `development.finalize`                              | Records COMPLETED or REJECTED; **neither means merged**                                                                            |
+| Inspection           | `development.inspect`, `development.verify`         | Canonical read-back and current candidate hash; uses existing mission verification                                                 |
+| Reservation recovery | `development.unlock`                                | Separate approval; terminal run and all filesystem operations known complete; preserves files                                      |
+
+The mission contains workspace → wait `patch_ready` → implement → test → review →
+release → wait `owner_decision` → finalize. All mutating/executing mission stages
+require their own exact approval, even under an always-allow policy. Wait submissions
+are signals, never grants. Independent read-back gates every execution stage. A failed
+test or review cannot reach release; revisions require a new bounded run. The fixed
+mission uses one attempt, with no automatic uncertain-effect retry.
+
+Logical stages are OBSERVATION, PROPOSAL, ARCHITECTURE_PLAN, APPROVED, WORKSPACE,
+IMPLEMENTATION, TEST, REVIEW, RELEASE_CANDIDATE, COMPLETED and REJECTED. WAITING,
+APPROVAL_REQUIRED, PAUSED, FAILED and CANCELLED come from the existing mission state,
+not a competing state machine. A completed run is a **reviewed release decision**, not
+proof of a deployed or even merged change.
+
+### Isolation, commands and protected systems
+
+The broker creates worktrees under `~/.ary-development/workspaces`, outside the live
+repository. A cross-process filesystem reservation serializes all runs for this broker
+root (stronger than just overlapping-path exclusion). No lock stealing or automatic
+expiry. Exclusive started/done operation receipts preserve uncertainty across crashes;
+a started receipt blocks replay and unlocking until manual investigation. Completed
+receipts can be reconciled without repeating effects. Canonical action replay still
+records the replay attempt separately, without executing again.
+
+Paths are relative, bounded and traversal-free. Symlinks, hardlinks, unexpected
+preimages, scope expansion and oversized snapshots are rejected. Existing tests are
+immutable; new regression tests may be added. Git uses fixed arguments, disabled
+hooks/fsmonitor/external diff and no shell. There is no merge, push, checkout-main,
+reset, clean, migration-execution, package-install or arbitrary-command tool.
+
+Core authorization, secret handling, action integrity, runner/policy code, agent
+execution context, package/test configuration, scripts and native launcher code are
+forbidden even under ADMIN. Memory, repository/provider/server code, mission/agent
+runtime, deployment configuration and migration **proposals** require the separate
+ADMIN-class build approval. This narrow protected-proposal exception supersedes the
+original audit's blanket migration-proposal prohibition; it never permits live DDL,
+a deployment, credential edits or weaker authorization. Static suspicious-diff checks
+and independent review fail closed; they are not a proof against all malicious code.
+
+Validation invokes fixed installed Vitest, TypeScript, Prettier and Next CLIs, without
+shell interpretation, installs, credentials or inherited environment. Vitest uses
+literal loopback hostname and middleware mode solely to avoid DNS/server startup;
+network access remains denied. macOS Seatbelt denies host data reads, writes outside
+the scratch directory, dependency writes, external/loopback network and signals to
+unrelated processes. Node/system runtime libraries and directory metadata needed to
+resolve approved paths are readable. Each command receives a fresh candidate copy,
+read-only dependency links, bounded output, a 45-second timeout and a 2 GB Node heap
+limit. Cancellation kills the owned process group. Mission cancellation/pause/lease
+loss is also checked during execution. No unsandboxed fallback exists.
+
+### Owner workflow and local verification
+
+Keep `ARY_SELF_DEVELOPMENT_ENABLED=false` until reviewing these limitations. To opt
+into this pilot, enable that server-side flag in the installed owner-local Mac runtime;
+it additionally requires the existing Desktop Bridge owner/Supabase/session checks.
+This is not exposed to a remote browser or a background worker lacking the native
+session. Configuration does not prove that sandbox validation succeeds.
+
+Use the existing action request/approval API and Mission Control:
+
+1. Submit `development.observe` with `conversation_id`, a unique `request_key`,
+   observation and owned source references. Retain returned `run_id` and revision.
+2. Submit `development.propose`, then `development.plan` with that revision, the exact
+   Git base, allowed file list, risks/acceptance/rollback and focused test paths.
+3. Inspect the plan; approve `development.build` (or protected variant) for its exact
+   hash. Use existing `mission.control` plan/start and `mission.tick` for the returned
+   mission. Approve its isolated-workspace request in the existing Approvals queue.
+4. Submit `development.patch` with exact before-content hashes (null for new files),
+   then existing `mission.submit` with name `patch_ready`, a UUID and `{submitted:true}`.
+   Approve the mission's exact implement/test/review/release actions as they arise.
+5. Inspect `development.inspect` and the release manifest. Record an approved
+   `development.decide` using the exact release hash and accept/reject reason; submit
+   `owner_decision` through `mission.submit`. Finalization records the decision only.
+6. Any real Git commit/merge is a separate human operation. Once terminal and known
+   settled, `development.unlock` releases the reservation without deleting evidence.
+
+API envelopes remain the existing `POST /api/actions/request` format:
+`{tool,input,reason,request_key,conversation_id}`. A request key identifies one exact
+request and must not be reused for changed inputs. Existing owner approval review and
+replay endpoints remain unchanged. The Tools, Approvals, Activity and Mission Control
+surfaces inspect these operations; no new dashboard or automatic prompt loop was added.
+
+Run the isolated acceptance suite (disposable Git/data, no real provider or user data):
+
+```sh
+cd "/Users/austin/Documents/Clevaryn/Premiere Plugins/QACutter/ary-nexus-self-development"
+npm test -- tests/self-development.test.ts
+```
+
+### Acceptance and remaining limits
+
+Fresh implementation validation (September 20, 2026):
+
+| Check                               | Result                                                                                                                                                                                                         |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused self-development acceptance | 26 passed; owner rejection, denied permission, real Git and native sandbox coverage included                                                                                                                   |
+| Full suite                          | 1,758 tests / 109 files passed                                                                                                                                                                                 |
+| TypeScript                          | Passed                                                                                                                                                                                                         |
+| Production build                    | Passed; existing `/`, `/mic-test`, `/mobile`, API routes preserved                                                                                                                                             |
+| Formatting                          | Four pre-existing warnings preserved: `src/components/calls/calls-panel.tsx`, `src/domain/permissions.ts` (unchanged phone entry), `src/infrastructure/phone/twilio-phone.ts`, `src/services/phone-service.ts` |
+| Main merge / production deployment  | Not performed                                                                                                                                                                                                  |
+
+The build-generated `next-env.d.ts` path rewrite is excluded from this feature.
+The original formatting warning in the phone entry of `permissions.ts` is preserved;
+only development capability entries were appended to that file.
+
+- The lifecycle fixture uses real local canonical storage, MissionEngine, actions,
+  approvals and disposable Git worktrees. Its command results and reviewer are
+  deliberately fixture providers, not proof of live model review or a production run.
+- Separate physical macOS checks exercise actual OS denials (including Data-volume path aliases and unrelated-process signals) and a real fixed Vitest
+  command. No live OpenAI/Hermes call, production account mutation or deployment occurs.
+- Network-dependent tests cannot pass inside this network-denied runner. Full app
+  validation may also exceed the fixed 45-second command bound; such results remain
+  failures and cannot be bypassed. No broad loopback exception or skipped tests.
+- This is a supervised, single-host pilot, not a hostile-code VM: disk/PID quotas,
+  proof of cleanup for descendants that deliberately detach, multi-host reservations,
+  and cloud sandbox portability are not implemented. Keep execution disabled for
+  untrusted autonomous patches. Interrupted operations retain a quarantine reservation.
+- No automatic Git commit/merge/push/deploy, dependency installation, binary patches,
+  arbitrary file deletion, schema changes, provider selection, agent proliferation or
+  self-improvement loop. Review context is bounded; no provider review means NOT READY.
+- Post-release measurable outcome ingestion and Level 2/3 autonomy remain unimplemented.
+
+### Exact Phase 1 files
+
+Added:
+
+- `src/domain/self-development.ts` — contracts, scope policy, bounded patch/review schemas and native mission specification.
+- `src/services/self-development-service.ts` — canonical artifacts, role transitions, source evidence, independent review and release decision.
+- `src/infrastructure/development/workspace.ts` — Git isolation, reservation/operation receipts, scope/preimage checks and fresh validation snapshots.
+- `src/infrastructure/development/runner.ts` — fixed, offline macOS sandbox commands and cancellation.
+- `src/infrastructure/tools/development-tools.ts` — registrations in the existing ToolRegistry.
+- `tests/self-development.test.ts` — 26 focused acceptance/security/recovery tests.
+
+Extended:
+
+- `src/domain/permissions.ts` — development capability metadata and mandatory approval classes only.
+- `src/services/action-request-service.ts` — truthful development receipts/outcomes, keyed requests and existing telemetry classification; no generic task-memory shortcut for code results.
+- `src/services/agent-runtime-service.ts` — explicit inspect/proposal tool eligibility for existing profiles; no worker build/merge authority.
+- `src/server/context.ts` — disabled-by-default owner-local composition, using the existing Desktop Bridge gate.
+- `.env.example` — `ARY_SELF_DEVELOPMENT_ENABLED=false`, no secret.
+- `docs/self-development.md` — this implementation status and retained audit.
+- `ARY_NEXUS_ROADMAP.md` — bounded milestone evidence; prior DONE entries/NEXT 3 unchanged.
+
+## Historical architecture audit (preserved)
 
 ## Decision
 

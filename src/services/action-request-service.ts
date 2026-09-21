@@ -600,6 +600,7 @@ export class ActionRequestService {
       !request.tool.startsWith("mission.") &&
       !request.tool.startsWith("agent.") &&
       !request.tool.startsWith("worker.") &&
+      !request.tool.startsWith("development.") &&
       !request.tool.startsWith("memory.") &&
       !request.tool.startsWith("outcome.") &&
       !request.tool.startsWith("skill.") &&
@@ -647,45 +648,56 @@ export class ActionRequestService {
         result: ({ result }) => ({ completed: true, result }),
         mutations: () => staged,
         outcome: ({ result }) =>
-          request.tool.startsWith("worker.") && result.job
+          request.tool.startsWith("development.")
             ? {
                 status:
-                  (result.job as { status: string }).status === "COMPLETED"
-                    ? "success"
-                    : ["FAILED", "TIMED_OUT", "CANCELLED"].includes(
-                          (result.job as { status: string }).status,
-                        )
-                      ? "failure"
-                      : "pending",
-                summary: `Delegated job ${(result.job as { id: string }).id}: ${(result.job as { status: string }).status}`,
-                metadata: {
-                  job_id: (result.job as { id: string }).id,
-                  provider: (result.job as { provider: string }).provider,
-                },
+                  result.passed === false || result.ready === false
+                    ? "failure"
+                    : "success",
+                summary: `${request.tool}: ${String(result.phase ?? "evidence recorded")}; no merge performed`,
+                metadata: { run_id: result.run_id ?? null, merged: false },
               }
-            : request.tool === "studio.execute_scene"
+            : request.tool.startsWith("worker.") && result.job
               ? {
                   status:
-                    result.status === "success"
-                      ? (result.readiness as { status?: string } | undefined)
-                          ?.status === "not_ready"
+                    (result.job as { status: string }).status === "COMPLETED"
+                      ? "success"
+                      : ["FAILED", "TIMED_OUT", "CANCELLED"].includes(
+                            (result.job as { status: string }).status,
+                          )
                         ? "failure"
-                        : (result.readiness as { status?: string } | undefined)
-                              ?.status === "unverified"
-                          ? "pending"
-                          : "success"
-                      : result.status === "uncertain"
-                        ? "pending"
-                        : "failure",
-                  summary: `Studio scene ${String(result.scene_id)}: ${String(result.status)}`,
+                        : "pending",
+                  summary: `Delegated job ${(result.job as { id: string }).id}: ${(result.job as { status: string }).status}`,
                   metadata: {
-                    studio_status: result.status,
-                    plan_id: result.plan_id,
-                    device_results: result.steps,
-                    readiness: result.readiness ?? null,
+                    job_id: (result.job as { id: string }).id,
+                    provider: (result.job as { provider: string }).provider,
                   },
                 }
-              : undefined,
+              : request.tool === "studio.execute_scene"
+                ? {
+                    status:
+                      result.status === "success"
+                        ? (result.readiness as { status?: string } | undefined)
+                            ?.status === "not_ready"
+                          ? "failure"
+                          : (
+                                result.readiness as
+                                  { status?: string } | undefined
+                              )?.status === "unverified"
+                            ? "pending"
+                            : "success"
+                        : result.status === "uncertain"
+                          ? "pending"
+                          : "failure",
+                    summary: `Studio scene ${String(result.scene_id)}: ${String(result.status)}`,
+                    metadata: {
+                      studio_status: result.status,
+                      plan_id: result.plan_id,
+                      device_results: result.steps,
+                      readiness: result.readiness ?? null,
+                    },
+                  }
+                : undefined,
         validate: async () => {
           this.tools.validate(request.tool, request.input);
           await this.tools.prepare(request.tool);
@@ -702,6 +714,7 @@ export class ActionRequestService {
               request.tool.startsWith("mission.") ||
               request.tool.startsWith("agent.") ||
               request.tool.startsWith("worker.") ||
+              request.tool.startsWith("development.") ||
               request.tool.startsWith("memory.") ||
               request.tool.startsWith("knowledge.") ||
               request.tool.startsWith("outcome.") ||
@@ -770,7 +783,8 @@ export class ActionRequestService {
           model_cost_reason:
             request.tool.startsWith("mission.") ||
             request.tool === "skill.propose" ||
-            request.tool === "communications.debrief"
+            request.tool === "communications.debrief" ||
+            request.tool === "development.review"
               ? "Any model usage is recorded by the existing model_calls telemetry and advisory result metrics"
               : "No model call in tool execution",
           source_message_id: request.source_message_id,
@@ -786,7 +800,8 @@ export class ActionRequestService {
             request.tool.startsWith("computer.") ||
             request.tool.startsWith("control.") ||
             request.tool.startsWith("phone.") ||
-            request.tool.startsWith("worker."),
+            request.tool.startsWith("worker.") ||
+            request.tool.startsWith("development."),
         },
       },
     );
@@ -832,6 +847,11 @@ export class ActionRequestService {
   /** Explicit owner review of an action's memory proposal; no existing fact is rewritten. */
   async remember(id: string) {
     const action = required(await this.repository.get("actions", id), "Action");
+    if (action.tool_name.startsWith("development."))
+      throw new AppError(
+        "Use reviewed Outcome memory for engineering results",
+        403,
+      );
     if (
       action.status !== "succeeded" ||
       !action.metadata.request_envelope ||

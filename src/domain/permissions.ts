@@ -1014,3 +1014,49 @@ Object.assign(toolRegistry, {
     description: "Inspect owned cloud worker jobs and connection diagnostics.",
   },
 });
+
+// Supervised development: no merge, push, deploy or arbitrary shell capability.
+for (const [verb, description] of Object.entries({
+  verify: "Independently read back a durable stage and candidate hash",
+  source: "Inspect bounded non-secret repository source at an exact commit",
+  unlock:
+    "Release a terminal development reservation after all operations are known complete; retain files",
+  observe: "Cite canonical evidence for an engineering observation",
+  inspect: "Inspect a development run and its canonical mission",
+  propose: "Record an evidence-linked improvement proposal",
+  plan: "Record immutable scope, acceptance, risks and rollback",
+  build: "Owner approval to build the exact development plan; no merge",
+  build_protected:
+    "ADMIN approval for protected scope; core authorization and secrets remain forbidden",
+  workspace: "Create a reserved isolated development Git worktree",
+  patch: "Record a bounded patch proposal within approved scope",
+  patch_ready: "Read the immutable patch hash at the mission wait",
+  implement: "Apply the exact approved patch in the isolated worktree only",
+  test: "Run fixed tests/typecheck/format/build in an offline OS sandbox",
+  review:
+    "Independently review the candidate using the configured model; no author conversation",
+  release:
+    "Assemble exact diff, validation, review and rollback evidence; never merge",
+  decide: "Owner records accept/reject for a release candidate; does not merge",
+  finalize: "Record the release decision outcome without changing main",
+})) {
+  const observe = ["source", "inspect", "verify", "patch_ready"].includes(verb);
+  const draft = ["observe", "propose", "plan", "patch"].includes(verb);
+  toolRegistry[`development.${verb}`] = {
+    actionType: `development_${verb}`,
+    mode: observe ? "observe" : draft ? "draft" : "execute",
+    defaultLevel: observe ? 1 : draft ? 3 : 4,
+    alwaysRequiresApproval: !observe && !draft,
+    permissionClasses:
+      verb === "build_protected"
+        ? ["ADMIN", "WRITE", "EXECUTE"]
+        : observe
+          ? ["READ"]
+          : draft
+            ? ["READ", "WRITE"]
+            : ["EXECUTE", "WRITE"],
+    riskLevel: ["test", "build_protected"].includes(verb) ? "high" : "medium",
+    simulated: false,
+    description,
+  };
+}

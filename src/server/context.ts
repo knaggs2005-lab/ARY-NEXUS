@@ -1,3 +1,7 @@
+import { SelfDevelopmentService } from "../services/self-development-service";
+import { GitDevelopmentWorkspace } from "../infrastructure/development/workspace";
+import { registerDevelopmentTools } from "../infrastructure/tools/development-tools";
+import { homedir } from "node:os";
 import { OpenAIRealtimeSessionProvider } from "../infrastructure/providers/openai-realtime";
 import { OpenAIRealtimeWebSocketTransport } from "../infrastructure/providers/openai-realtime-transport";
 import { AgentProviderRegistry } from "../domain/agent-provider";
@@ -412,6 +416,24 @@ export function services(
   registerOutcomeTools(actionTools, outcomeEngine, actions);
   const skills = new SkillService(repository, actionTools, orchestrator);
   registerSkillTools(actionTools, skills);
+  if (process.env.ARY_SELF_DEVELOPMENT_ENABLED === "true") {
+    const development = new SelfDevelopmentService(
+      repository,
+      missions,
+      new GitDevelopmentWorkspace(
+        process.cwd(),
+        resolve(homedir(), ".ary-development", "workspaces"),
+        resolve(process.cwd(), "node_modules"),
+      ),
+      llm,
+    );
+    registerDevelopmentTools(actionTools, development, () =>
+      assertDesktopAccess(
+        repository.userId,
+        actionScope?.desktopAuthorized === true,
+      ),
+    );
+  }
   const memorySystem = new NexusMemoryService(repository, memories);
   registerMemoryTools(actionTools, memorySystem, actions);
   return {
