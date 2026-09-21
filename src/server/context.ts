@@ -1,3 +1,4 @@
+import { DevelopmentAutonomyService } from "../services/development-autonomy-service";
 import { SelfDevelopmentService } from "../services/self-development-service";
 import { GitDevelopmentWorkspace } from "../infrastructure/development/workspace";
 import { registerDevelopmentTools } from "../infrastructure/tools/development-tools";
@@ -418,20 +419,29 @@ export function services(
   registerSkillTools(actionTools, skills);
   let development: SelfDevelopmentService | undefined;
   if (process.env.ARY_SELF_DEVELOPMENT_ENABLED === "true") {
+    const developmentExecutor = new GitDevelopmentWorkspace(
+      process.cwd(),
+      resolve(homedir(), ".ary-development", "workspaces"),
+      resolve(process.cwd(), "node_modules"),
+    );
     development = new SelfDevelopmentService(
       repository,
       missions,
-      new GitDevelopmentWorkspace(
-        process.cwd(),
-        resolve(homedir(), ".ary-development", "workspaces"),
-        resolve(process.cwd(), "node_modules"),
-      ),
+      developmentExecutor,
       llm,
     );
-    registerDevelopmentTools(actionTools, development, () =>
-      assertDesktopAccess(
-        repository.userId,
-        actionScope?.desktopAuthorized === true,
+    registerDevelopmentTools(
+      actionTools,
+      development,
+      () =>
+        assertDesktopAccess(
+          repository.userId,
+          actionScope?.desktopAuthorized === true,
+        ),
+      new DevelopmentAutonomyService(
+        repository,
+        development,
+        developmentExecutor,
       ),
     );
   }

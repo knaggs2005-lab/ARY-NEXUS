@@ -1063,3 +1063,27 @@ for (const [verb, description] of Object.entries({
     description,
   };
 }
+
+// Separate opt-in local release capability; existing supervised approvals are unchanged.
+for (const verb of [
+  "autonomy_inspect",
+  "autonomy_metrics",
+  "qualify",
+  "autorelease",
+  "discover",
+] as const) {
+  const read = verb.startsWith("autonomy_");
+  toolRegistry[`development.${verb}`] = {
+    actionType: `development_${verb}`,
+    mode: read ? "observe" : verb === "discover" ? "draft" : "execute",
+    defaultLevel: read ? 1 : verb === "discover" ? 3 : 4,
+    alwaysRequiresApproval: verb === "qualify",
+    permissionClasses: read ? ["READ"] : ["READ", "WRITE", "EXECUTE"],
+    riskLevel: read ? "low" : "medium",
+    simulated: false,
+    description:
+      verb === "autorelease"
+        ? "Policy-gated documentation release to a private local Git ref; never main, push or deploy"
+        : `Bounded development ${verb}; canonical evidence required`,
+  };
+}

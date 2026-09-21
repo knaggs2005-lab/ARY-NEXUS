@@ -1,3 +1,16 @@
+## Level 2 local-release extension — September 21, 2026
+
+[Bounded local release policy, controls and acceptance procedure](development-level2.md)
+extends the same supervised runs and action authority. Default-disabled,
+documentation corrections only after three owner-qualified outcomes; private local
+Git ref publication with post-publication verification and compare-and-swap rollback.
+No automatic main merge, remote push, deployment, or autonomous code-edit loop.
+Existing build/implementation/test/review approvals remain mandatory. Outcome and
+cost uncertainty escalates. This is a local-release pilot, not production autonomy.
+The owner reports physical supervised acceptance; no historical IDs or successful
+runs were fabricated to satisfy qualification. Remaining baseline and live evidence
+gates are recorded in the linked acceptance procedure.
+
 # Supervised Ary self-development — architecture audit
 
 Status: **Phase 1 implemented as a default-disabled, supervised single-host pilot.**

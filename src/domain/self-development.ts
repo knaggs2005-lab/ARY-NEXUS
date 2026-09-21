@@ -116,6 +116,7 @@ export interface CommandReceipt {
   output_bytes?: number;
 }
 export interface ValidationReceipt {
+  tester?: string;
   candidate: string;
   commands: CommandReceipt[];
   passed: boolean;
@@ -184,6 +185,16 @@ export interface ReleasedDevelopmentOutcome {
   metrics: { name: string; value: number; unit: string }[];
 }
 export interface DevelopmentExecutor {
+  publishLocal?(
+    run: DevelopmentRun,
+    signal?: AbortSignal,
+  ): Promise<{
+    commit: string;
+    ref: string;
+    rollback: string;
+    healthy: boolean;
+    rolled_back: boolean;
+  }>;
   source(
     base: string,
     paths: string[],
@@ -229,7 +240,7 @@ export function forbiddenPath(path: string) {
     /(^|\/)(\.env[^/]*|\.git|\.data|node_modules|credentials?|secrets?|vault)(\/|\.|$)/i.test(
       path,
     ) ||
-    /(?:permission|authorization|action-service|action-request-service|action-cancellation|agent-context|mission-execution-context|self-development|development-tools|tool-registry|security|oauth|vault)/i.test(
+    /(?:permission|authorization|action-service|action-request-service|action-cancellation|agent-context|mission-execution-context|self-development|development-autonomy|development-tools|tool-registry|security|oauth|vault)/i.test(
       path,
     ) ||
     /^(?:AGENTS\.md|\.gitattributes|\.gitmodules|\.npmrc|package(?:-lock)?\.json|(?:tsconfig|next\.config|vitest\.config)\.|scripts\/|desktop\/|src\/infrastructure\/development\/)/i.test(

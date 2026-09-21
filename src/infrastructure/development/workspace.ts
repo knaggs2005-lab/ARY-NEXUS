@@ -28,6 +28,7 @@ import {
   protectedPath,
   WorkspacePolicyError,
 } from "../../domain/self-development";
+import { documentationPath } from "../../domain/development-autonomy";
 import { AppError } from "../../domain/validation";
 import {
   runSandboxed,
@@ -489,6 +490,118 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
       diff,
       files: await this.changed(run),
     };
+  }
+  /** Publish a documentation-only object/ref, never a checkout, main, remote or deployment. */
+  async publishLocal(run: DevelopmentRun, signal?: AbortSignal) {
+    return this.operation(run, "local-release", run.release!.hash, async () => {
+      const snapshot = await this.inspect(run);
+      if (
+        !snapshot.files.length ||
+        snapshot.files.some((p) => !documentationPath(p)) ||
+        snapshot.candidate !== run.review?.candidate
+      )
+        throw new WorkspacePolicyError(
+          "Local release candidate is not qualified",
+        );
+      const tree = this.worktree(run),
+        base = run.workspace!.base;
+      const ref = `refs/ary/releases/${run.id}`;
+      const git = async (args: string[]) => {
+        signal?.throwIfAborted();
+        try {
+          const result = await exec(
+            "/usr/bin/git",
+            [
+              "--literal-pathspecs",
+              "-c",
+              "core.hooksPath=/dev/null",
+              "-c",
+              "core.fsmonitor=false",
+              ...args,
+            ],
+            {
+              cwd: tree,
+              shell: false,
+              timeout: 15000,
+              maxBuffer: 1024 * 1024,
+              signal,
+              env: {
+                PATH: "/usr/bin:/bin",
+                HOME: this.root,
+                GIT_CONFIG_NOSYSTEM: "1",
+                GIT_CONFIG_GLOBAL: "/dev/null",
+                GIT_INDEX_FILE: join(this.directory(run), "release.index"),
+                NODE_ENV: "production",
+                GIT_AUTHOR_NAME: "Ary Release",
+                GIT_AUTHOR_EMAIL: "ary@localhost",
+                GIT_COMMITTER_NAME: "Ary Release",
+                GIT_COMMITTER_EMAIL: "ary@localhost",
+              },
+            },
+          );
+          return result.stdout.trim();
+        } catch {
+          throw new AppError(
+            "Local release Git operation failed; reconcile receipt before retry",
+            409,
+          );
+        }
+      };
+      await git(["read-tree", base]);
+      for (const path of snapshot.files) {
+        await this.safePath(tree, path);
+        if (
+          !(await git(["ls-tree", base, "--", path])).startsWith("100644 blob ")
+        )
+          throw new WorkspacePolicyError(
+            "Release requires existing regular documentation",
+          );
+        const blob = await git([
+          "hash-object",
+          "-w",
+          "--no-filters",
+          "--",
+          path,
+        ]);
+        await git([
+          "update-index",
+          "--add",
+          "--cacheinfo",
+          `100644,${blob},${path}`,
+        ]);
+      }
+      const treeId = await git(["write-tree"]);
+      const commit = await git([
+        "commit-tree",
+        treeId,
+        "-p",
+        base,
+        "-m",
+        `Ary bounded documentation release ${run.id}`,
+      ]);
+      if ((await this.inspect(run)).candidate !== snapshot.candidate)
+        throw new WorkspacePolicyError(
+          "Candidate changed before local publication",
+        );
+      await git([
+        "update-ref",
+        ref,
+        commit,
+        "0000000000000000000000000000000000000000",
+      ]);
+      // No process/service was changed: health checks verify the actual published tree/ref.
+      const healthy =
+        (await git(["rev-parse", ref])) === commit &&
+        (await git(["rev-parse", `${commit}^{tree}`])) === treeId &&
+        (await this.inspect(run)).candidate === snapshot.candidate;
+      let rolled_back = false;
+      if (!healthy) {
+        // Compare-and-swap touches only our private ref; never resets files or another writer.
+        await git(["update-ref", ref, base, commit]);
+        rolled_back = (await git(["rev-parse", ref])) === base;
+      }
+      return { commit, ref, rollback: base, healthy, rolled_back };
+    });
   }
   async validate(run: DevelopmentRun, operation: string, signal?: AbortSignal) {
     return this.operation<ValidationReceipt>(

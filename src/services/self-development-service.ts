@@ -476,9 +476,15 @@ export class SelfDevelopmentService {
   }
   async test(id: string, c: ToolExecutionContext) {
     const { row, run } = await this.stage(id, "IMPLEMENTATION", c);
+    if (c.agentId && c.agentId === run.patch?.author)
+      throw new AppError(
+        "Patch author cannot act as independent Test Ary",
+        403,
+      );
     run.validation = await this.monitored(run, c, (signal) =>
       this.executor.validate(run, c.actionId!, signal),
     );
+    run.validation.tester = `isolated-runner:${c.actionId}`;
     run.phase = "TEST";
     return {
       ...this.save(row, run, "Test Ary", c),

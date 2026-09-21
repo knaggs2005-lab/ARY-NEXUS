@@ -9,10 +9,13 @@ import {
 } from "../../domain/self-development";
 import type { SelfDevelopmentService } from "../../services/self-development-service";
 
+import type { DevelopmentAutonomyService } from "../../services/development-autonomy-service";
+
 export function registerDevelopmentTools(
   tools: ToolRegistry,
   service: SelfDevelopmentService,
   guard: () => void = () => {},
+  autonomy?: DevelopmentAutonomyService,
 ) {
   const id = z.object({ run_id: z.uuid() }).strict();
   const register: ToolRegistry["register"] = (name, tool) =>
@@ -35,6 +38,28 @@ export function registerDevelopmentTools(
         },
       },
     });
+  if (autonomy) {
+    register("development.autonomy_inspect", {
+      inputSchema: id,
+      execute: (i) => autonomy.inspect(i.run_id),
+    });
+    register("development.autonomy_metrics", {
+      inputSchema: z.object({}).strict(),
+      execute: () => autonomy.metrics(),
+    });
+    register("development.qualify", {
+      inputSchema: id.extend({ outcome_id: z.uuid() }).strict(),
+      execute: (i, c) => autonomy.qualify(i.run_id, i.outcome_id, c),
+    });
+    register("development.autorelease", {
+      inputSchema: id.extend({ release_hash: sha }).strict(),
+      execute: (i, c) => autonomy.release(i.run_id, i.release_hash, c),
+    });
+    register("development.discover", {
+      inputSchema: id,
+      execute: (i, c) => autonomy.discover(i.run_id, c),
+    });
+  }
   register("development.feedback", {
     inputSchema: id
       .extend({
