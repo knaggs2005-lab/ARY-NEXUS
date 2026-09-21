@@ -1039,3 +1039,53 @@ it("rejects credential filenames before Git source inspection", async () => {
       /Secret inspection/,
     );
 });
+it("projects owner engineering evidence and redacts credential-looking text", async () => {
+  const run = await planned();
+  const row = await f.repo.get("messages", run.id);
+  const value = structuredClone(
+    row!.metadata.self_development_v1,
+  ) as unknown as DevelopmentRun;
+  value.observation = "Problem sk-abcdefghijklmnopqrstuvwxyz";
+  await f.repo.update("messages", run.id, {
+    metadata: { ...row!.metadata, self_development_v1: value as any },
+  });
+  const view = await service.ownerView(run.id);
+  expect(JSON.stringify(view)).not.toContain("sk-abcdefghijklmnopqrstuvwxyz");
+  expect(JSON.stringify(view)).toContain("[REDACTED]");
+  expect((view.items as any[])[0].run.plan_hash).toBe(run.plan_hash);
+});
+it("requires approval for owner feedback and records rejection without implementation", async () => {
+  const run = await planned();
+  const input = {
+    run_id: run.id,
+    revision: run.revision,
+    decision: "reject",
+    reason: "Wrong priority for this change",
+  };
+  await expect(
+    request("development.feedback", input, false),
+  ).rejects.toBeInstanceOf(ApprovalRequiredError);
+  await request("development.feedback", input);
+  expect((await service.read(run.id)).run.phase).toBe("REJECTED");
+  expect(runner).not.toHaveBeenCalled();
+});
+it("revision feedback pauses the existing mission and retains scope", async () => {
+  const { run, id } = await patched();
+  const before = (await service.read(run.id)).run;
+  await request("development.feedback", {
+    run_id: run.id,
+    revision: before.revision,
+    decision: "revision",
+    reason: "Add clearer acceptance evidence",
+  });
+  expect((await f.engine.inspect(id)).mission?.state).toBe("PAUSED");
+  expect((await service.read(run.id)).run.plan_hash).toBe(before.plan_hash);
+  await expect(
+    request("development.feedback", {
+      run_id: run.id,
+      revision: before.revision,
+      decision: "reject",
+      reason: "Stale owner decision",
+    }),
+  ).rejects.toThrow(/changed/);
+});

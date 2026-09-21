@@ -72,7 +72,7 @@ export const destinations = [
     id: "SYSTEM",
     tab: "Settings",
     detail: "Permissions and workspace controls",
-    sections: ["Settings"],
+    sections: ["Settings", "Engineering"],
   },
 ] as const;
 export type PrimaryDestination = (typeof destinations)[number]["id"];

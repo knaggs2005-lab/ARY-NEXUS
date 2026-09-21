@@ -7,6 +7,96 @@ This implementation section supersedes the proposed filenames and design-only
 status in that historical audit. No database migration, dependency, Brain, voice,
 GPT-Live, transport, provider configuration or deployment change was made.
 
+## Owner Engineering surface — September 20, 2026
+
+The native dashboard now exposes **System → Engineering**. The standalone route is
+`/engineering` (canonical local URL `http://127.0.0.1:3000/engineering`). It reuses
+NexusSurface/NexusState, existing design tokens, ApprovalDialog, EmergencyControl,
+the authenticated `api` client and the existing action/mission infrastructure.
+No voice behavior, dependencies, database schema or other screens were redesigned.
+
+The surface includes the eight-stage pipeline; recent run selection; evidence and
+proposal; plan scope/protected files/acceptance; branch/worktree/base SHA; actual
+changed-file/diff inspection; durable commands and results; security review; action
+and approval receipts; release package/rollback; and owner decision. Estimates not
+present in the run are explicitly “Not recorded.” Displayed model cost is the recorded
+review cost only, not a fabricated whole-run total. No implementation commit SHA is
+invented: the current backend creates an uncommitted worktree candidate.
+
+`POST /api/engineering` provides the owner-scoped projection, bounded to 50 recent
+runs and 100 related actions per run. Evidence snapshots/release packages and local
+workspace diagnostics are expanded only for the selected run. Patch bodies are not
+sent. Three-second visible-page polling reads durable state, not invented activity.
+Source/progress content is rendered as escaped text and credential-looking strings
+are redacted. Workspace policy violations retain the existing mission pause behavior.
+This endpoint retains **native launcher authorization**, the existing development
+inspect permission, user authentication and same-origin POST checks. GET is not an
+alternate native-authorization bypass. No secret or permission configuration changed.
+
+Owner controls use the existing keyed action request API. Plan scope approval selects
+the existing build or protected-build capability. `development.feedback` is the only
+new mutating capability: exact owner revision and mandatory approval are required;
+it records rejection/revision evidence and cancels/pauses an existing mission.
+Revision feedback cannot rewrite approved scope; revised scope requires a new bounded
+plan/run. STOP run uses existing mission cancellation; STOP CONTROL retains the
+existing global emergency stop. Cancellation is cooperative, not a promise of rollback.
+
+Pending step review uses ApprovalDialog to record approval **only**. It never dispatches
+`development.workspace`/implementation/test directly from the UI without a mission
+lease. Prepare/start/resume/advance buttons operate the existing MissionEngine through
+`mission.control` and `mission.tick`; every step keeps its exact approval requirement.
+Owner release acceptance records intent only. The separate “Submit recorded decision
+to mission” action submits the existing `owner_decision` event; later checkpoint/finalize
+approval is still required. Nothing merges, pushes or deploys.
+
+### Physical owner acceptance
+
+1. Use `codex/supervised-self-development-v1` in
+   `/Users/austin/Documents/Clevaryn/Premiere Plugins/QACutter/ary-nexus-self-development`.
+   The currently installed app may still point at another checkout; this task does not
+   replace it. This checkout must use your existing secure server environment and owner
+   configuration. Never paste keys into source or chat.
+2. Ensure the existing `ARY_SELF_DEVELOPMENT_ENABLED=true`, desktop-bridge enablement,
+   Supabase authentication and `ARY_DESKTOP_USER_ID` owner configuration are present.
+   This pass does not enable them or copy credentials. Quit the other Ary launcher
+   before starting this checkout so its launcher can own port 3000.
+3. Run `npm run desktop` from this checkout. Sign in as the configured owner. Open
+   **System → Engineering**. The equivalent local route is `/engineering`; live
+   controls require the native session, not an ordinary browser tab.
+4. Select an existing evidence-backed run. Check proposal/evidence and allowed files;
+   choose **Approve plan scope** and inspect the existing one-time approval dialog.
+   Use Prepare/Advance/Start as the mission state requires. Review pending steps,
+   then Resume/Advance; never manually execute a lease-bound step outside its mission.
+   No demo runs are created. If empty, first create a bounded proposal using the existing
+   development tools. This screen reviews runs; it does not invent or author patches.
+5. Verify command receipts, test results and the diff; try Request revision or STOP
+   on a disposable approved run. For a release candidate, provide a decision reason,
+   approve or reject its release intent, then submit the recorded decision. Confirm
+   main remains unchanged. A scope warning must show NOT READY and disable acceptance.
+
+### Automated acceptance and limits
+
+Validation: 51 focused tests (43 self-development + 8 HTTP), 1,776 full-suite tests
+across 109 files; typecheck and production build passed. Browser contract acceptance
+passed with no page errors. The same four pre-existing formatting warnings remain;
+no unrelated formatting repairs were made.
+
+Run `npx vitest run tests/self-development.test.ts tests/http.test.ts` for backend
+and authorization coverage. Run `npm run build` then
+`node --import tsx scripts/evaluate-engineering.ts` for browser acceptance. The latter
+starts an isolated compiled UI server on port 4327, intercepts API calls with fixtures,
+and shuts it down afterward. It covers plan approval/rejection, revision pause, native
+POST contract, lease-safe pending approval, mission controls/stop, test/diff/security
+inspection, scope warning, release accept/reject and decision submission, empty/disabled/
+error states, responsive layout/reduced motion and browser errors. No fixture enters
+production and no model/provider/development command is called by this browser script.
+The real native owner/provider flow is **not claimed as physically accepted** here.
+
+No new run-creation editor, automatic background mission runner, automatic patch author,
+new event bus or merge implementation was added. Workspace existence, command receipts
+and costs are shown only when recorded; refresh failures remain visible. Unknown costs,
+estimates and runtime details are not inferred. Existing roadmap milestones remain intact.
+
 ## Workspace execution hardening — September 20, 2026
 
 Extends the existing Phase 1 implementation on the same feature branch; no parallel

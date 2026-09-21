@@ -211,6 +211,7 @@ export interface DevelopmentExecutor {
     branch_retained: boolean;
     evidence_retained: boolean;
   }>;
+  diagnostics(run: DevelopmentRun): Promise<import("./models").Json[]>;
   releaseReservation(run: DevelopmentRun): Promise<void>;
 }
 /** File-name boundary complements content redaction; no credential-file inspection. */

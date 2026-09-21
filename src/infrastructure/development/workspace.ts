@@ -608,6 +608,23 @@ export class GitDevelopmentWorkspace implements DevelopmentExecutor {
     }
     return result;
   }
+  async diagnostics(run: DevelopmentRun) {
+    await this.init();
+    await this.ownership(run);
+    const receipts: import("../../domain/models").Json[] = [];
+    for (const name of ["test", "focused", "typecheck", "format", "build"]) {
+      try {
+        const file = join(this.directory(run), `command-${name}.json`);
+        const stat = await lstat(file);
+        if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 3000000)
+          throw new AppError("Invalid command receipt", 409);
+        receipts.push(JSON.parse(await readFile(file, "utf8")));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    return receipts;
+  }
   async cleanup(run: DevelopmentRun) {
     if (!["COMPLETED", "REJECTED"].includes(run.phase))
       throw new AppError(

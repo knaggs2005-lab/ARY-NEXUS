@@ -202,6 +202,7 @@ export async function handle(
     }
     const {
       workers,
+      development,
       outcomeEngine,
       skills,
       toolDiscovery,
@@ -432,6 +433,25 @@ export async function handle(
     }
     if (route === "events/stream" && method === "GET")
       return nexusEventStream(repository, request);
+    if (route === "engineering" && method === "POST") {
+      if (!development)
+        return json({
+          enabled: false,
+          items: [],
+          observed_at: new Date().toISOString(),
+        });
+      await actionTools.prepare("development.inspect");
+      const selected = z
+        .uuid()
+        .optional()
+        .parse(url.searchParams.get("run_id") ?? undefined);
+      return json(
+        await actions.run("development.inspect", null, async () => ({
+          enabled: true,
+          ...(await development.ownerView(selected)),
+        })),
+      );
+    }
     if (route === "orchestrator/plans" && method === "GET")
       return json(await orchestrator.history());
     if (

@@ -30,6 +30,125 @@ export class SelfDevelopmentService {
     private executor: DevelopmentExecutor,
     private model: LanguageModelProvider,
   ) {}
+  async ownerView(selected?: string) {
+    const messages = (await this.repo.list("messages")).filter(
+      (m) => m.metadata[DEVELOPMENT],
+    );
+    const allActions = await this.repo.list("actions");
+    const approvals = await this.repo.list("action_approvals");
+    const items = [];
+    for (const message of messages
+      .toSorted((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 50)) {
+      const { run } = await this.read(message.id);
+      const mission = run.mission_id
+        ? await this.missions.inspect(run.mission_id)
+        : null;
+      const receipts = allActions.filter(
+        (a) =>
+          a.input.run_id === run.id ||
+          run.history.some((h) => h.action_id === a.id),
+      );
+      let snapshot = null,
+        commands: Json[] = [],
+        warning = "";
+      if (selected === run.id && run.workspace) {
+        try {
+          commands = await this.executor.diagnostics(run);
+          snapshot = await this.inspectWorkspace(run);
+        } catch {
+          warning =
+            "Workspace inspection unavailable or policy violation detected. Inspect Activity before proceeding.";
+        }
+      }
+      items.push({
+        run: {
+          ...run,
+          patch: undefined,
+          evidence: run.evidence.map((e) => ({
+            ...e,
+            snapshot: selected === run.id ? e.snapshot : {},
+          })),
+          release: run.release
+            ? {
+                ...run.release,
+                manifest: selected === run.id ? run.release.manifest : {},
+              }
+            : undefined,
+        },
+        mission: mission
+          ? {
+              id: mission.id,
+              revision: mission.revision,
+              state: mission.mission?.state,
+            }
+          : null,
+        snapshot,
+        commands,
+        warning,
+        actions: receipts.slice(-100).map((a) => ({
+          id: a.id,
+          tool: a.tool_name,
+          status: a.status,
+          at: a.updated_at,
+          error: a.error,
+          approval:
+            approvals.filter((p) => p.action_id === a.id).at(-1)?.decision ??
+            null,
+          pending:
+            a.status === "approval_required" &&
+            !approvals.some(
+              (p) =>
+                p.action_id === a.id &&
+                (p.decision === "rejected" ||
+                  p.consumed_at ||
+                  (p.decision === "approved" &&
+                    !!p.expires_at &&
+                    Date.parse(p.expires_at) > Date.now())),
+            ),
+        })),
+      });
+    }
+    // UI never receives credential-looking text, including potentially untrusted evidence or command output.
+    const scrub = (value: unknown): unknown => {
+      if (typeof value === "string")
+        return value.replace(
+          /sk-[A-Za-z0-9_-]{10,}|Bearer\s+[^\s]+|(?:api[_-]?key|password|token|secret)\s*[:=]\s*[^\s]+|-----BEGIN [\s\S]*?PRIVATE KEY-----[\s\S]*?-----END [\s\S]*?PRIVATE KEY-----/gi,
+          "[REDACTED]",
+        );
+      if (Array.isArray(value)) return value.map(scrub);
+      if (value && typeof value === "object")
+        return Object.fromEntries(
+          Object.entries(value).map(([k, v]) => [k, scrub(v)]),
+        );
+      return value;
+    };
+    return json(scrub({ items, observed_at: new Date().toISOString() }));
+  }
+  async feedback(
+    id: string,
+    revision: number,
+    decision: "reject" | "revision",
+    reason: string,
+    c: ToolExecutionContext,
+  ) {
+    this.guard(c);
+    if (c.agentId) throw new AppError("Owner feedback only", 403);
+    const { row, run } = await this.read(id);
+    if (run.revision !== revision)
+      throw new AppError("Run changed; reload before deciding", 409);
+    if (["COMPLETED", "REJECTED"].includes(run.phase))
+      throw new AppError("Run is closed", 409);
+    if (run.mission_id) {
+      const mission = await this.missions.inspect(run.mission_id);
+      await this.missions.control(
+        run.mission_id,
+        decision === "reject" ? "cancel" : "pause",
+        mission.revision,
+      );
+    } else if (decision === "reject") run.phase = "REJECTED";
+    return this.save(row, run, `Owner ${decision}: ${reason}`, c);
+  }
   async source(base: string, paths: string[]) {
     return json({ files: await this.executor.source(base, paths) });
   }

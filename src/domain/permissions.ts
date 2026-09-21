@@ -1017,6 +1017,7 @@ Object.assign(toolRegistry, {
 
 // Supervised development: no merge, push, deploy or arbitrary shell capability.
 for (const [verb, description] of Object.entries({
+  feedback: "Owner rejects or requests revision of a bounded engineering run",
   verify: "Independently read back a durable stage and candidate hash",
   source: "Inspect bounded non-secret repository source at an exact commit",
   cleanup:

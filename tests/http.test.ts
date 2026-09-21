@@ -93,3 +93,20 @@ it("exposes only desktop identity and live-update capability before authenticati
     });
   }
 });
+it("engineering reads require authenticated same-origin POST", async () => {
+  vi.stubEnv("ARY_STORAGE", "supabase");
+  for (const [origin, status] of [
+    ["http://localhost", 401],
+    ["https://attacker.example", 403],
+  ] as const) {
+    const result = await handle(
+      new Request("http://localhost/api/engineering", {
+        method: "POST",
+        headers: { origin },
+        body: "{}",
+      }),
+      ["engineering"],
+    );
+    expect(result.status).toBe(status);
+  }
+});

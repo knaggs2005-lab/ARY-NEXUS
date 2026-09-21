@@ -35,6 +35,17 @@ export function registerDevelopmentTools(
         },
       },
     });
+  register("development.feedback", {
+    inputSchema: id
+      .extend({
+        revision: z.number().int().nonnegative(),
+        decision: z.enum(["reject", "revision"]),
+        reason: z.string().trim().min(5).max(1000),
+      })
+      .strict(),
+    execute: (i, c) =>
+      service.feedback(i.run_id, i.revision, i.decision, i.reason, c),
+  });
   register("development.verify", {
     inputSchema: id
       .extend({

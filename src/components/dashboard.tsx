@@ -85,6 +85,9 @@ import nexusStyles from "./nexus/nexus.module.css";
 const ControlPanel = dynamic(() =>
   import("./control/control-panel").then((m) => m.ControlPanel),
 );
+const EngineeringView = dynamic(() =>
+  import("./engineering/engineering-view").then((m) => m.EngineeringView),
+);
 const ConnectionsView = dynamic(() =>
   import("./connections-view").then((m) => m.ConnectionsView),
 );
@@ -143,6 +146,7 @@ import type { EntityAlias, ExtractionJob } from "@/domain/models";
 type Tab =
   | "Skills"
   | "Tools"
+  | "Engineering"
   | "Connections"
   | "Computer & Browser"
   | "Automations"
@@ -207,6 +211,7 @@ const titles: Record<Tab, [string, string]> = {
     "Controlled digital presence.",
     "Inspect, review and execute through Ary permissions.",
   ],
+  Engineering: ["Engineering", "Supervised source changes and owner review."],
   Connections: ["Connections", "What Ary can use right now."],
   Tools: [
     "Connected by intent.",
@@ -1023,6 +1028,7 @@ export function Dashboard({
           {tab === "Perception" && <PerceptionPanel />}
           {tab === "Settings" && <PermissionsPanel />}
           {tab === "Computer & Browser" && <ControlPanel />}
+          {tab === "Engineering" && <EngineeringView />}
           {tab === "Connections" && (
             <ConnectionsView onOpen={(name) => setTab(name as Tab)} />
           )}

@@ -1,0 +1,145 @@
+.root {
+  color: var(--nx-text, #e9eef5);
+  background: var(--nx-bg, #0b1018);
+  padding: clamp(18px, 3vw, 40px);
+  min-height: 100vh;
+  font-family: var(--nx-font, sans-serif);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: start;
+}
+.header h1 {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.root p,
+.root dd {
+  line-height: 1.6;
+}
+.root small,
+.root dt {
+  color: var(--nx-secondary, #aab8cd);
+}
+.root a {
+  color: inherit;
+  display: inline-block;
+  margin: 0 16px 16px 0;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 30px;
+}
+.workspace main {
+  min-width: 0;
+}
+.root button {
+  background: #ffffff06;
+  color: inherit;
+  border: 1px solid var(--nx-line, #ffffff22);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 6px 8px 6px 0;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.root button:hover,
+.root button[aria-pressed="true"] {
+  background: #aea4d51c;
+}
+.root button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.root :focus-visible {
+  outline: 2px solid #c7bddf;
+  outline-offset: 3px;
+}
+.workspace aside button {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+.workspace aside span,
+.workspace aside small {
+  display: block;
+  margin-top: 10px;
+}
+.pipeline {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.pipeline li {
+  border-bottom: 2px solid #ffffff20;
+  padding: 12px 4px;
+  color: #aab8cd;
+}
+.pipeline li[aria-current="step"] {
+  color: #eee8fa;
+  border-color: #bdb0d2;
+}
+.pipeline li[data-complete="true"] {
+  border-color: #79958c;
+}
+.root section {
+  padding: 24px;
+  margin: 20px 0;
+}
+.root dt {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.root dd {
+  margin: 4px 0 12px;
+  overflow-wrap: anywhere;
+}
+.root pre {
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #0003;
+  padding: 16px;
+  font-size: 12px;
+}
+.root summary {
+  padding: 12px 0;
+  cursor: pointer;
+}
+.root textarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  margin: 12px 0;
+  background: #ffffff05;
+  color: inherit;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  padding: 14px;
+}
+.root .stop {
+  border-color: #d8a09270;
+  white-space: nowrap;
+}
+@media (max-width: 800px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .root button {
+    transition: none;
+  }
+}

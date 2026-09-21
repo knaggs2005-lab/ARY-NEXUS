@@ -416,8 +416,9 @@ export function services(
   registerOutcomeTools(actionTools, outcomeEngine, actions);
   const skills = new SkillService(repository, actionTools, orchestrator);
   registerSkillTools(actionTools, skills);
+  let development: SelfDevelopmentService | undefined;
   if (process.env.ARY_SELF_DEVELOPMENT_ENABLED === "true") {
-    const development = new SelfDevelopmentService(
+    development = new SelfDevelopmentService(
       repository,
       missions,
       new GitDevelopmentWorkspace(
@@ -437,6 +438,7 @@ export function services(
   const memorySystem = new NexusMemoryService(repository, memories);
   registerMemoryTools(actionTools, memorySystem, actions);
   return {
+    development,
     workers,
     outcomeEngine,
     skills,
